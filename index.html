@@ -39,11 +39,20 @@ html,body{height:100%;overflow:hidden;background:var(--bg)}
 body{font-family:var(--font);color:var(--text);display:flex;flex-direction:column;height:100dvh;overflow:hidden}
 
 /* ── NAV ── */
+#app-title{
+  display:flex;align-items:center;gap:7px;
+  background:var(--surface);
+  padding:calc(12px + env(safe-area-inset-top,0px)) 16px 10px;
+  flex-shrink:0;
+  font-size:21px;font-weight:700;letter-spacing:-.3px;
+  color:var(--text);
+}
+#app-title .title-flow{color:var(--accent);margin-left:-2px}
 #nav{
   display:flex;background:var(--surface);
   border-bottom:1px solid var(--border);
   overflow-x:auto;scrollbar-width:none;flex-shrink:0;
-  padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px;
+  padding:4px 12px 8px;
   gap:6px;
 }
 #nav::-webkit-scrollbar{display:none}
@@ -270,6 +279,8 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
 }
 .fixed-check.checked{background:var(--accent);border-color:var(--accent);color:#000}
 .fixed-check.checked::after{content:'✓';font-size:12px;font-weight:700;color:#000}
+.fixed-paid-pill{flex-shrink:0;padding:4px 10px;border-radius:14px;background:rgba(76,217,100,.15);color:var(--success);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:opacity .15s}
+.fixed-paid-pill:active{opacity:.6}
 .fixed-info{flex:1;min-width:0}
 .fixed-name{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:500}
 .fixed-emoji{font-size:17px}
@@ -423,7 +434,11 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
    STATS TAB
 ══════════════════════════════ */
 #tab-stats{padding-bottom:env(safe-area-inset-bottom,0px)}
-.stats-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}
+.stats-eye-row{display:flex;justify-content:flex-end;align-items:center;padding:10px 16px 0}
+.stats-eye-btn{width:34px;height:34px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:background .15s}
+.stats-eye-btn:active{opacity:.7}
+.stats-eye-btn svg{width:18px;height:18px;display:block}
+.stats-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 12px 12px}
 .stats-card{
   background:var(--surface);border:1px solid var(--border);
   border-radius:var(--radius);padding:12px 14px;
@@ -714,6 +729,9 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
 </style>
 <body>
 
+<!-- ── APP TITLE ── -->
+<div id="app-title">💰 Exps<span class="title-flow">·Flow</span></div>
+
 <!-- ── NAV ── -->
 <nav id="nav">
   <div class="nav-tab active" data-tab="chat">Chat</div>
@@ -721,7 +739,7 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
   <div class="nav-tab" data-tab="fixed">Fixed</div>
   <div class="nav-tab" data-tab="savings">Savings</div>
   <div class="nav-tab" data-tab="stats">Stats</div>
-  <div class="nav-tab" data-tab="settings">Settings</div>
+  <div class="nav-tab" data-tab="settings" style="font-size:15px">⚙️</div>
 </nav>
 
 <!-- ── PAGE HEADER ── -->
@@ -786,6 +804,9 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
 
   <!-- ── STATS ── -->
   <div class="tab-pane" id="tab-stats">
+    <div class="stats-eye-row">
+      <button class="stats-eye-btn" id="stats-eye-btn" title="Hide/show amounts"></button>
+    </div>
     <div class="stats-cards" id="stats-cards"></div>
     <div class="stats-range" id="stats-range">
       <button class="range-btn active" data-range="month">This Month</button>
@@ -871,8 +892,9 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
     </div>
     <div class="settings-section">
       <div class="settings-section-title">Data</div>
+      <div id="backup-reminder" style="text-align:center;font-size:11px;line-height:1.4;margin:0 12px 8px;font-family:var(--font)"></div>
       <div class="settings-btn-row">
-        <button class="btn btn-ghost settings-btn-full" id="btn-export-json">↓ Export JSON</button>
+        <button class="btn btn-primary settings-btn-full" id="btn-export-json" style="font-size:14px">↑ Backup to Notes / Files</button>
         <button class="btn btn-ghost settings-btn-full" id="btn-import-json">↑ Import JSON</button>
         <button class="btn settings-btn-full" style="background:var(--danger-dim);color:var(--danger)" id="btn-clear-data">Clear All Data</button>
       </div>
@@ -939,7 +961,9 @@ const DEFAULT_CATS = [
   {id:'travel',emoji:'✈️',name:'Travel',keywords:['flight','hotel','airbnb','holiday','travel','airasia','旅游','机票','酒店']},
   {id:'gifts',emoji:'🎁',name:'Gifts',keywords:['gift','present','hadiah','birthday','生日','礼物','红包','angpao','duit raya','belanja','treat','请客']},
   {id:'investment',emoji:'📈',name:'Investment',keywords:['moomoo','luno','crypto','stocks','saham','invest','unit trust','asb','epf','投资']},
-  {id:'income',emoji:'💰',name:'Income',keywords:['salary','gaji','income','pendapatan','commission','bayaran','收入','薪水','工资','stream income','earnings']},
+  {id:'inc_salary',emoji:'💵',name:'Salary',isIncome:true,keywords:['salary','gaji','薪水','工资','月薪','底薪','wages','payroll']},
+  {id:'inc_side',emoji:'💼',name:'Side Income',isIncome:true,keywords:['side income','freelance','tiktok','stream','streaming','douyin','直播','副业','外快','part time','parttime','gig','commission','komisyen','tutor','tuition']},
+  {id:'inc_invest',emoji:'📊',name:'Investment Income',isIncome:true,keywords:['dividend','dividen','股息','interest','bunga','利息','capital gain','投资收入','rental income','sewa terima']},
   {id:'transfer',emoji:'🔄',name:'Transfer',keywords:['transfer','topup','pindah']},
   {id:'other',emoji:'🗂️',name:'Other',keywords:[]},
 ];
@@ -975,12 +999,15 @@ let S = {
   transactions: [],
   fixedExpenses: [...DEFAULT_FIXED],
   savingsStarting: {}, // bankId → number
+  savingsStartDate: {}, // bankId → YYYY-MM-DD (only count tx on/after this date)
   categories: JSON.parse(JSON.stringify(DEFAULT_CATS)),
   banks: JSON.parse(JSON.stringify(DEFAULT_BANKS)),
   learnedKeywords: {}, // keyword → catId
   spendingLimits: {}, // catId → number
   budgetLimits: {},   // catId → monthly limit
   budgetVisible: {},  // catId → bool
+  hideAmounts: false, // eye toggle for stats
+  lastBackupDate: null, // YYYY-MM-DD of last JSON export
 };
 let pendingCategorySelection = null; // { parsed, resolve }
 let statsRange = 'month';
@@ -1019,6 +1046,13 @@ function load() {
     if (d) {
       const parsed = JSON.parse(d);
       S = {...S, ...parsed};
+      // Migrate old single 'income' category to new 'inc_salary'
+      const hadOldIncome=S.categories.find(c=>c.id==='income');
+      if (hadOldIncome) {
+        S.categories=S.categories.filter(c=>c.id!=='income');
+        S.transactions.forEach(t=>{ if(t.categoryId==='income') t.categoryId='inc_salary'; });
+        if(S.budgetLimits&&S.budgetLimits['income']){ S.budgetLimits['inc_salary']=S.budgetLimits['income']; delete S.budgetLimits['income']; }
+      }
       // ensure new default cats/banks are merged
       for (const dc of DEFAULT_CATS) {
         if (!S.categories.find(c => c.id === dc.id)) S.categories.push(dc);
@@ -1166,7 +1200,22 @@ function detectCategory(text) {
   // default categories - longest keyword match
   let best=null, bestLen=0;
   for (const cat of S.categories) {
-    if (cat.id==='transfer'||cat.id==='income'||cat.id==='other') continue;
+    if (cat.id==='transfer'||cat.id==='other'||cat.isIncome) continue;
+    for (const kw of cat.keywords) {
+      if (lower.includes(kw.toLowerCase()) && kw.length>bestLen) {
+        bestLen=kw.length; best=cat;
+      }
+    }
+  }
+  return best;
+}
+
+// Detect which income subcategory based on keywords
+function detectIncomeCategory(text) {
+  const lower=text.toLowerCase();
+  let best=null,bestLen=0;
+  for (const cat of S.categories) {
+    if (!cat.isIncome) continue;
     for (const kw of cat.keywords) {
       if (lower.includes(kw.toLowerCase()) && kw.length>bestLen) {
         bestLen=kw.length; best=cat;
@@ -1189,7 +1238,7 @@ function isTransferInput(lower) {
 }
 
 function isIncomeInput(lower, descParts) {
-  const ikw = ['salary','gaji','income','pendapatan','komisyen','commission','bayaran terima','收入','薪水','工资','earnings','revenue'];
+  const ikw = ['salary','gaji','income','收入','薪水','工资','earnings','revenue','pendapatan','dividend','dividen','股息','利息','interest','bunga','freelance','tiktok stream','side income','副业','外快'];
   return ikw.some(k=>lower.includes(k));
 }
 
@@ -1228,6 +1277,26 @@ function parseInput(raw) {
   if (lower.startsWith('delete ')||lower.startsWith('del ')) {
     const q=lower.startsWith('delete ')?lower.slice(7):lower.slice(4);
     return {command:'deleteQuery',query:q.trim()};
+  }
+
+  // Fixed-expense PAID command, e.g. "22/6 netflix paid 47.00" or "netflix paid 47"
+  if (lower.includes('paid')) {
+    const dateRes=extractDate(trimmed);
+    const payDate=dateRes?dateRes.date:todayStr();
+    const afterDate=dateRes?dateRes.rest:trimmed;
+    // remove the word 'paid', collect name + amount
+    const cleaned=afterDate.replace(/\bpaid\b/i,' ').replace(/\s*[-–·]\s*/g,' ').trim();
+    const tokens=cleaned.split(/\s+/).filter(Boolean);
+    let payAmt=null,nameTokens=[];
+    for (const tk of tokens) {
+      const a=extractAmount(tk);
+      if (a!==null && payAmt===null) payAmt=a;
+      else nameTokens.push(tk);
+    }
+    const nameQuery=nameTokens.join(' ').toLowerCase();
+    if (nameQuery) {
+      return {command:'payFixed', query:nameQuery, amount:payAmt, date:payDate};
+    }
   }
 
   // Transfer detection (before date extraction)
@@ -1293,29 +1362,26 @@ function parseInput(raw) {
   let type='expense';
   if (isIncomeInput(lower, descParts)) type='income';
 
-  // Category
-  let cat = type==='income' ? catById('income') : detectCategory(descParts.join(' '));
-  if (!cat && type==='expense') {
-    // Return null-cat for later user selection
-    return {
-      needsCategory:true,
-      id:uid(), date, time:timeStr(), type,
-      categoryId:null, amount,
-      bankId:bank?bank.id:null,
-      description:descParts[0]||'',
-      item:descParts.slice(1).join(' · '),
-      raw:trimmed
-    };
+  // Category detection
+  let cat;
+  if (type==='income') {
+    cat = detectIncomeCategory(descParts.join(' ')) || detectIncomeCategory(lower);
+  } else {
+    cat = detectCategory(descParts.join(' '));
   }
 
+  // Build a transaction draft; missing fields will be filled via step-by-step prompts
+  const isFood = cat && cat.id==='food';
   return {
     id:uid(), date, time:timeStr(), type,
-    categoryId: cat?cat.id:(type==='income'?'income':'other'),
+    categoryId: cat?cat.id:null,
     amount,
     bankId: bank?bank.id:null,
-    description: descParts[0]||rest,
+    description: descParts[0]||'',
     item: descParts.slice(1).join(' · '),
-    raw: trimmed
+    raw: trimmed,
+    _needsFill:true, // flag → run fill-in checker
+    _isFood:isFood
   };
 }
 
@@ -1383,13 +1449,19 @@ function appendQuestionBubble(parsed) {
   const bubble=document.createElement('div');
   bubble.className='bubble';
   
-  const opts=S.categories.filter(c=>c.id!=='transfer'&&c.id!=='income').map(c=>
+  const catList = parsed.incomeMode
+    ? S.categories.filter(c=>c.isIncome)
+    : S.categories.filter(c=>c.id!=='transfer'&&!c.isIncome);
+  const opts=catList.map(c=>
     `<div class="q-opt" data-cat="${c.id}">${c.emoji} ${c.name}</div>`
   ).join('');
 
+  const qText = parsed.incomeMode
+    ? `Which income type for "<strong>${parsed.description||parsed.raw}</strong>"?`
+    : `Which category for "<strong>${parsed.description||parsed.raw}</strong>"?`;
   bubble.innerHTML=`
     <div class="bubble-question">
-      Which category for "<strong>${parsed.description||parsed.raw}</strong>"?
+      ${qText}
       <div class="q-opts">${opts}</div>
     </div>
   `;
@@ -1460,7 +1532,58 @@ function handleCommand(cmd) {
       updateTodayAmt();
       if (document.querySelector('#tab-records.active')) renderRecords();
     });
+  } else if (cmd.command==='payFixed') {
+    handlePayFixed(cmd);
   }
+}
+
+function handlePayFixed(cmd) {
+  // Find matching fixed expense by name
+  const item=S.fixedExpenses.find(f=>f.name.toLowerCase().includes(cmd.query)||cmd.query.includes(f.name.toLowerCase()));
+  if (!item) {
+    appendSystemBubble(`No fixed expense found matching "${cmd.query}".`);
+    return;
+  }
+  const amount=cmd.amount!=null?cmd.amount:(parseFloat(item.amount)||0);
+  if (!amount||amount<=0) {
+    appendSystemBubble(`Please specify an amount, e.g. "${item.name} paid 47".`);
+    return;
+  }
+  const payDate=cmd.date||todayStr();
+  const payMonth=payDate.slice(0,7);
+  // Create expense record at the paid date
+  const txId=uid();
+  S.transactions.unshift({
+    id:txId, date:payDate, time:timeStr(), type:'expense',
+    categoryId:item.categoryId||'other', amount:amount,
+    bankId:item.bankId, description:item.name, item:'Fixed Expense', raw:item.name
+  });
+  // Update fixed item: mark paid for that month, set billing day from paid date
+  item.lastPaidDate=payMonth;
+  item.paidTxId=txId;
+  const payDay=parseInt(payDate.slice(8,10));
+  item.dayOfMonth=payDay; // cycle now anchored to the paid date
+  if (item.cycle==='yearly') item.billingMonth=parseInt(payDate.slice(5,7));
+  item.amount=String(amount);
+  save();
+  updateTodayAmt();
+  if (document.querySelector('#tab-fixed.active')) renderFixed();
+  // Confirmation bubble
+  const bank=bankById(item.bankId);
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  const niceDate=fmtDate(payDate);
+  bubble.innerHTML=`
+    <div class="bubble-category">📌 Fixed Expense Paid</div>
+    <div class="bubble-main">
+      <div class="bubble-desc">${item.emoji} ${item.name}${bank?' · '+bank.name:''}</div>
+      <div class="bubble-amount">−RM ${amount.toFixed(2)}</div>
+    </div>
+    <div class="bubble-meta">Paid on ${niceDate} · cycle now starts day ${payDay}</div>
+  `;
+  msgs.appendChild(bubble);
+  msgs.scrollTop=msgs.scrollHeight;
 }
 
 function handleChatSend() {
@@ -1483,17 +1606,196 @@ function handleChatSend() {
     return;
   }
 
-  if (result.needsCategory) {
-    appendQuestionBubble(result);
+  if (result._needsFill) {
+    processPendingTx(result);
     return;
   }
 
+  // (transfers and other direct types)
   saveTransaction(result);
   appendResultBubble(result);
   updateTodayAmt();
   if (document.querySelector('#tab-records.active')) renderRecords();
   if (document.querySelector('#tab-savings.active')) renderSavings();
   if (document.querySelector('#tab-stats.active')) renderStats();
+}
+
+// ── Step-by-step fill-in flow ──
+const MEAL_OPTIONS=[
+  {label:'🌅 Breakfast',val:'breakfast'},
+  {label:'🌤️ Lunch',val:'lunch'},
+  {label:'🍵 Tea Time',val:'teatime'},
+  {label:'🌆 Dinner',val:'dinner'},
+  {label:'🌙 Supper',val:'supper'},
+];
+
+function processPendingTx(tx){
+  const isFood = tx.categoryId==='food';
+  // 1. Category missing?
+  if(!tx.categoryId){
+    askCategory(tx); return;
+  }
+  // 2. Food: ask meal type (stored in description) if not set
+  if(isFood && !tx.description && !tx._mealAsked){
+    askMeal(tx); return;
+  }
+  // 3a. Food: ask what was eaten (stored in item) if not set
+  if(isFood && !tx.item && !tx._descAsked){
+    askDescription(tx); return;
+  }
+  // 3b. Non-food: ask description if nothing at all
+  if(!isFood && !tx.description && !tx.item && !tx._descAsked){
+    askDescription(tx); return;
+  }
+  // 4. Amount missing?
+  if(tx.amount==null || tx.amount===''){
+    askAmount(tx); return;
+  }
+  // 5. Bank missing?
+  if(!tx.bankId){
+    askBank(tx); return;
+  }
+  // All filled → finalize
+  finalizePendingTx(tx);
+}
+
+function finalizePendingTx(tx){
+  // Build description/item nicely
+  if(!tx.description) tx.description=tx.item||tx.raw;
+  delete tx._needsFill; delete tx._isFood; delete tx._mealAsked; delete tx._descAsked;
+  saveTransaction(tx);
+  appendResultBubble(tx);
+  updateTodayAmt();
+  if (document.querySelector('#tab-records.active')) renderRecords();
+  if (document.querySelector('#tab-savings.active')) renderSavings();
+  if (document.querySelector('#tab-stats.active')) renderStats();
+}
+
+function askCategory(tx){
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  const isIncome=tx.type==='income';
+  const catList=isIncome
+    ? S.categories.filter(c=>c.isIncome)
+    : S.categories.filter(c=>c.id!=='transfer'&&!c.isIncome);
+  const opts=catList.map(c=>`<div class="q-opt" data-cat="${c.id}">${c.emoji} ${c.name}</div>`).join('');
+  const q=isIncome?'Which income type?':'Which category?';
+  bubble.innerHTML=`<div class="bubble-question">${q}<div class="q-opts">${opts}</div></div>`;
+  bubble.querySelectorAll('.q-opt').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      tx.categoryId=btn.dataset.cat;
+      tx._isFood = tx.categoryId==='food';
+      // learn keyword
+      const kw=(tx.description||tx.item||'').toLowerCase().split(/\s+/)[0];
+      if(kw&&kw.length>2 && !isIncome){ S.learnedKeywords[kw]=tx.categoryId; save(); }
+      bubble.remove();
+      processPendingTx(tx);
+    });
+  });
+  msgs.appendChild(bubble);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function askMeal(tx){
+  tx._mealAsked=true;
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  const opts=MEAL_OPTIONS.map(m=>`<div class="q-opt" data-meal="${m.val}">${m.label}</div>`).join('');
+  bubble.innerHTML=`<div class="bubble-question">Which meal?<div class="q-opts">${opts}</div>
+    <input class="field q-typein" id="meal-typein" placeholder="or type it..." style="margin-top:8px;font-size:13px"></div>`;
+  bubble.querySelectorAll('.q-opt').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      tx.description=btn.dataset.meal;
+      bubble.remove();
+      processPendingTx(tx);
+    });
+  });
+  const inp=bubble.querySelector('#meal-typein');
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&inp.value.trim()){
+      tx.description=inp.value.trim();
+      bubble.remove();
+      processPendingTx(tx);
+    }
+  });
+  msgs.appendChild(bubble);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function askDescription(tx){
+  tx._descAsked=true;
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  const isFood=tx.categoryId==='food';
+  const prompt=isFood?'What did you eat?':'What was it for?';
+  bubble.innerHTML=`<div class="bubble-question">${prompt}
+    <input class="field q-typein" id="desc-typein" placeholder="type here..." style="margin-top:8px;font-size:13px">
+    <div class="q-opts" style="margin-top:8px"><div class="q-opt" id="desc-skip">Skip</div></div></div>`;
+  const inp=bubble.querySelector('#desc-typein');
+  const submit=()=>{
+    const v=inp.value.trim();
+    if(v){
+      if(isFood) tx.item=v;          // food: store as item (meal is in description)
+      else if(tx.description) tx.item=v;
+      else tx.description=v;
+    } else {
+      // skipped with nothing → mark item filled so it doesn't loop
+      if(isFood && !tx.item) tx.item='';
+    }
+    bubble.remove();
+    processPendingTx(tx);
+  };
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter') submit(); });
+  bubble.querySelector('#desc-skip').addEventListener('click',()=>{
+    if(isFood) tx._descAsked=true; // ensure no re-loop
+    submit();
+  });
+  msgs.appendChild(bubble);
+  setTimeout(()=>inp.focus(),50);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function askAmount(tx){
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  bubble.innerHTML=`<div class="bubble-question">How much? (RM)
+    <input class="field q-typein" id="amt-typein" type="number" inputmode="decimal" placeholder="0.00" step="0.01" style="margin-top:8px;font-size:13px;font-family:var(--mono)"></div>`;
+  const inp=bubble.querySelector('#amt-typein');
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){
+      const v=parseFloat(inp.value);
+      if(!isNaN(v)&&v>0){
+        tx.amount=v;
+        bubble.remove();
+        processPendingTx(tx);
+      }
+    }
+  });
+  msgs.appendChild(bubble);
+  setTimeout(()=>inp.focus(),50);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function askBank(tx){
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  const opts=S.banks.map(b=>`<div class="q-opt" data-bank="${b.id}">${b.emoji} ${b.name}</div>`).join('');
+  const q=tx.type==='income'?'Which account received it?':'Which account / wallet paid?';
+  bubble.innerHTML=`<div class="bubble-question">${q}<div class="q-opts">${opts}</div></div>`;
+  bubble.querySelectorAll('.q-opt').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      tx.bankId=btn.dataset.bank;
+      bubble.remove();
+      processPendingTx(tx);
+    });
+  });
+  msgs.appendChild(bubble);
+  msgs.scrollTop=msgs.scrollHeight;
 }
 
 // ═══════════════════════════════════════
@@ -1626,16 +1928,19 @@ function renderFixed() {
     const dayStr=item.cycle==='yearly'
       ?`${MONTHS_SHORT[(item.billingMonth||1)-1]} ${item.dayOfMonth||1}`
       :`Day ${item.dayOfMonth||1}`;
-    const rowClass=['fixed-item',isDue?'due-soon':''].filter(Boolean).join(' ');
+    const rowClass=['fixed-item',isDue&&!paidThisMonth?'due-soon':''].filter(Boolean).join(' ');
+    // Paid this month → show cyan Paid pill (tap to undo). Otherwise → checkbox.
+    const leftControl = paidThisMonth
+      ? `<div class="fixed-paid-pill" data-id="${item.id}" title="Tap to undo payment">Paid ✓</div>`
+      : `<div class="fixed-check${isSel?' checked':''}" data-id="${item.id}" style="cursor:pointer"></div>`;
     html+=`
       <div class="${rowClass}" data-id="${item.id}">
-        <div class="fixed-check${isSel?' checked':''}" data-id="${item.id}" style="cursor:pointer"></div>
+        ${leftControl}
         <div class="fixed-info">
           <div class="fixed-name">
             <span class="fixed-emoji">${item.emoji}</span>
             <span>${item.name}</span>
-            ${isDue?`<span class="fixed-badge" style="background:var(--danger-dim);color:var(--danger)">⚠️ Due in ${daysUntil}d</span>`:''}
-            ${paidThisMonth?`<span class="fixed-badge" style="background:rgba(76,217,100,.12);color:var(--success)">Paid ✓</span>`:''}
+            ${isDue&&!paidThisMonth?`<span class="fixed-badge" style="background:var(--danger-dim);color:var(--danger)">⚠️ Due in ${daysUntil}d</span>`:''}
           </div>
           <div class="fixed-meta">${cycleLabel(item)} · ${dayStr}</div>
         </div>
@@ -1657,6 +1962,23 @@ function renderFixed() {
       else fixedSelectedIds.add(id);
       chk.classList.toggle('checked',fixedSelectedIds.has(id));
       updateFixedSummary();
+    });
+  });
+  // Paid pill → tap to undo payment
+  el.querySelectorAll('.fixed-paid-pill').forEach(pill=>{
+    pill.addEventListener('click',()=>{
+      const item=S.fixedExpenses.find(f=>f.id===pill.dataset.id);
+      if(!item)return;
+      showConfirmModal(`Undo payment for "${item.name}"? This removes the expense record too.`,()=>{
+        if(item.paidTxId){
+          S.transactions=S.transactions.filter(t=>t.id!==item.paidTxId);
+        }
+        item.lastPaidDate=null;
+        item.paidTxId=null;
+        save();
+        renderFixed();
+        updateTodayAmt();
+      });
     });
   });
   el.querySelectorAll('.fixed-bank-sel').forEach(sel=>{
@@ -1691,6 +2013,93 @@ function renderFixed() {
   updateFixedSummary();
 }
 
+
+function showFixedModal(item) {
+  const isEdit=!!item;
+  const bankOpts=S.banks.map(b=>`<option value="${b.id}"${item&&b.id===item.bankId?' selected':''}>${b.emoji} ${b.name}</option>`).join('');
+  const catOpts=S.categories.filter(c=>c.id!=='transfer'&&!c.isIncome).map(c=>`<option value="${c.id}"${item&&c.id===item.categoryId?' selected':''}>${c.emoji} ${c.name}</option>`).join('');
+  const curCycle=item?item.cycle:'monthly';
+  const curDay=item?item.dayOfMonth||1:1;
+  const curMonth=item?item.billingMonth||1:1;
+
+  let dayGrid='<div class="day-picker" id="fe-day-grid">';
+  for (let d=1;d<=31;d++) dayGrid+=`<button type="button" class="day-btn${d===curDay?' dp-sel':''}" data-day="${d}">${d}</button>`;
+  dayGrid+='</div>';
+
+  let monthGrid='<div id="fe-month-row" style="margin-top:10px;display:'+(curCycle==='yearly'?'block':'none')+'"><div class="modal-field-label" style="margin-bottom:4px">Billing month</div><div class="month-picker" id="fe-month-grid">';
+  MONTHS_SHORT.forEach((mn,i)=>{ monthGrid+=`<button type="button" class="month-btn${i+1===curMonth?' mp-sel':''}" data-month="${i+1}">${mn}</button>`; });
+  monthGrid+='</div></div>';
+
+  showModal(`
+    <div class="modal-title">${isEdit?'Edit Fixed Expense':'Add Fixed Expense'}</div>
+    <div class="modal-body">
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <div><div class="modal-field-label">Emoji</div>
+          <input class="field" id="fe-emoji" value="${item?item.emoji:'📦'}" maxlength="2" style="width:54px;text-align:center"></div>
+        <div style="flex:1"><div class="modal-field-label">Name</div>
+          <input class="field" id="fe-name" value="${item?item.name:''}" placeholder="e.g. Netflix"></div>
+      </div>
+      <div><div class="modal-field-label">Category</div>
+        <select class="field" id="fe-cat">${catOpts}</select></div>
+      <div><div class="modal-field-label">Bank / Wallet</div>
+        <select class="field" id="fe-bank">${bankOpts}</select></div>
+      <div><div class="modal-field-label">Amount (RM)</div>
+        <input class="field field-mono" id="fe-amt" type="number" placeholder="0.00" step="0.01" value="${item?item.amount:''}"></div>
+      <div><div class="modal-field-label">Billing cycle</div>
+        <select class="field" id="fe-cycle">
+          <option value="monthly"${curCycle==='monthly'?' selected':''}>Monthly</option>
+          <option value="6months"${curCycle==='6months'?' selected':''}>Every 6 months</option>
+          <option value="yearly"${curCycle==='yearly'?' selected':''}>Yearly</option>
+        </select></div>
+      <div><div class="modal-field-label">Billing day</div>${dayGrid}</div>
+      ${monthGrid}
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" id="fe-save">${isEdit?'Save':'Add'}</button>
+      <button class="btn btn-ghost" id="fe-cancel">Cancel</button>
+    </div>
+  `);
+
+  let selDay=curDay;
+  document.getElementById('fe-day-grid').querySelectorAll('.day-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.day-btn').forEach(b=>b.classList.remove('dp-sel'));
+      btn.classList.add('dp-sel'); selDay=parseInt(btn.dataset.day);
+    });
+  });
+  let selMonth=curMonth;
+  document.getElementById('fe-month-grid').querySelectorAll('.month-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.month-btn').forEach(b=>b.classList.remove('mp-sel'));
+      btn.classList.add('mp-sel'); selMonth=parseInt(btn.dataset.month);
+    });
+  });
+  document.getElementById('fe-cycle').addEventListener('change',e=>{
+    document.getElementById('fe-month-row').style.display=e.target.value==='yearly'?'block':'none';
+  });
+
+  document.getElementById('fe-save').addEventListener('click',()=>{
+    const emoji=document.getElementById('fe-emoji').value.trim()||'📦';
+    const name=document.getElementById('fe-name').value.trim();
+    if(!name){document.getElementById('fe-name').focus();return;}
+    const categoryId=document.getElementById('fe-cat').value;
+    const bankId=document.getElementById('fe-bank').value;
+    const amount=document.getElementById('fe-amt').value;
+    const cycle=document.getElementById('fe-cycle').value;
+    if(isEdit){
+      item.emoji=emoji;item.name=name;item.categoryId=categoryId;item.bankId=bankId;
+      item.amount=amount;item.cycle=cycle;item.dayOfMonth=selDay;
+      if(cycle==='yearly')item.billingMonth=selMonth;
+    } else {
+      S.fixedExpenses.push({id:uid(),emoji,name,categoryId,bankId,amount,cycle,dayOfMonth:selDay,billingMonth:selMonth,lastPaidDate:null,paidTxId:null});
+    }
+    save();closeModal();renderFixed();
+  });
+  document.getElementById('fe-cancel').addEventListener('click',closeModal);
+}
+
+function showAddFixedModal(){ showFixedModal(null); }
+
 function saveFixedAmounts() {
   document.querySelectorAll('.fixed-amount-input').forEach(inp=>{
     const item=S.fixedExpenses.find(f=>f.id===inp.dataset.id);
@@ -1708,11 +2117,15 @@ function markSelectedPaid() {
     paidItems.push(item);
     item.lastPaidDate=cm;
     if(item.amount&&parseFloat(item.amount)>0){
+      const txId=uid();
+      item.paidTxId=txId;
       S.transactions.unshift({
-        id:uid(),date:todayStr(),time:timeStr(),type:'expense',
+        id:txId,date:todayStr(),time:timeStr(),type:'expense',
         categoryId:item.categoryId||'other',amount:parseFloat(item.amount),
         bankId:item.bankId,description:item.name,item:'Fixed Expense',raw:item.name
       });
+    } else {
+      item.paidTxId=null;
     }
   });
   if(paidItems.length===0){toast('No items selected');return;}
@@ -1747,6 +2160,205 @@ function markSelectedPaid() {
 
 
 // ═══════════════════════════════════════
+// DRAG TO REORDER (touch-based)
+// ═══════════════════════════════════════
+
+function initTouchDrag(container, itemSel, handleSel, onReorder) {
+  if(container._tdCleanup){container._tdCleanup();container._tdCleanup=null;}
+  let dragging=null, fromIdx=-1, ghost=null, offsetY=0;
+  function getItems(){return[...container.querySelectorAll(itemSel)];}
+  const onTS=e=>{
+    const h=e.target.closest(handleSel);
+    if(!h)return;
+    const item=h.closest(itemSel);
+    if(!item)return;
+    const items=getItems();
+    fromIdx=items.indexOf(item);
+    if(fromIdx<0)return;
+    const r=item.getBoundingClientRect();
+    offsetY=e.touches[0].clientY-r.top;
+    ghost=item.cloneNode(true);
+    ghost.style.cssText=`position:fixed;left:${r.left}px;width:${r.width}px;top:${r.top}px;z-index:400;opacity:.88;box-shadow:0 8px 28px rgba(0,0,0,.55);pointer-events:none;transition:none;border-radius:12px`;
+    document.body.appendChild(ghost);
+    item.style.opacity='0.2';
+    dragging=item;
+    e.preventDefault();
+  };
+  const onTM=e=>{
+    if(!dragging)return;
+    ghost.style.top=(e.touches[0].clientY-offsetY)+'px';
+    e.preventDefault();
+  };
+  const onTE=e=>{
+    if(!dragging)return;
+    const ty=e.changedTouches[0].clientY;
+    const items=getItems();
+    let toIdx=fromIdx;
+    items.forEach((el,i)=>{
+      if(el===dragging)return;
+      const r=el.getBoundingClientRect();
+      if(ty>r.top+r.height/2)toIdx=i;
+    });
+    ghost?.remove();ghost=null;
+    dragging.style.opacity='';dragging=null;
+    if(toIdx!==fromIdx)onReorder(fromIdx,toIdx);
+    fromIdx=-1;
+  };
+  container.addEventListener('touchstart',onTS,{passive:false});
+  container.addEventListener('touchmove',onTM,{passive:false});
+  container.addEventListener('touchend',onTE);
+  container._tdCleanup=()=>{
+    container.removeEventListener('touchstart',onTS);
+    container.removeEventListener('touchmove',onTM);
+    container.removeEventListener('touchend',onTE);
+    ghost?.remove();ghost=null;
+  };
+}
+
+// ═══════════════════════════════════════
+// SAVINGS TAB
+// ═══════════════════════════════════════
+
+function computeBalance(bankId) {
+  const starting=S.savingsStarting[bankId]||0;
+  const startDate=(S.savingsStartDate&&S.savingsStartDate[bankId])||null;
+  let balance=starting;
+  const sorted=[...S.transactions].sort((a,b)=>a.date.localeCompare(b.date)||(a.time||'').localeCompare(b.time||''));
+  for (const tx of sorted) {
+    // Only count transactions on/after the starting-balance date (if one is set)
+    if (startDate && tx.date < startDate) continue;
+    if (tx.type==='expense'&&tx.bankId===bankId) balance-=(tx.amount||0);
+    if (tx.type==='income'&&tx.bankId===bankId) balance+=(tx.amount||0);
+    if (tx.type==='transfer'&&tx.bankId===bankId) balance-=(tx.amount||0);
+    if (tx.type==='transfer'&&tx.toBankId===bankId) balance+=(tx.amount||0);
+  }
+  return balance;
+}
+
+function renderSavings() {
+  const el=document.getElementById('savings-list');
+  if (!el) return;
+  if (S.banks.length===0) {
+    el.innerHTML=`<div class="empty-state"><div class="es-icon">🏦</div><div class="es-text">No accounts yet</div></div>`;
+    return;
+  }
+  let html='';
+  for (let idx=0;idx<S.banks.length;idx++) {
+    const bank=S.banks[idx];
+    const balance=computeBalance(bank.id);
+    const balClass=balance>0?'positive':balance<0?'negative':'zero';
+    const txs=S.transactions.filter(t=>t.bankId===bank.id||(t.type==='transfer'&&t.toBankId===bank.id)).slice(0,5);
+    const txHtml=txs.length===0
+      ?`<div style="padding:10px 14px;font-size:11px;color:var(--text-dim)">No transactions yet</div>`
+      :txs.map(tx=>{
+        const isCredit=(tx.type==='income')||(tx.type==='transfer'&&tx.toBankId===bank.id);
+        const desc=tx.description||(tx.raw||'').slice(0,30);
+        return `<div class="sav-tx"><div class="sav-tx-row"><div class="sav-tx-desc">${desc}</div><div class="sav-tx-amount ${isCredit?'pos':'neg'}">${isCredit?'+':'-'}RM ${(tx.amount||0).toFixed(2)}</div></div><div class="sav-tx-date">${tx.date} ${tx.time||''}</div></div>`;
+      }).join('');
+    html+=`
+      <div class="savings-card" data-idx="${idx}" data-bank="${bank.id}">
+        <div class="sav-card-top">
+          <div class="drag-handle" title="Drag to reorder">⠿</div>
+          <div class="sav-icon">${bank.emoji}</div>
+          <div class="sav-name" style="flex:1">${bank.name}</div>
+          <div class="sav-balance ${balClass}" style="margin-right:8px">RM ${Math.abs(balance).toFixed(2)}</div>
+          <div class="sav-actions">
+            <button class="btn-icon sav-edit-btn" data-bank="${bank.id}" title="Edit" style="font-size:12px">✏️</button>
+            <button class="btn-icon sav-del-btn" data-bank="${bank.id}" title="Delete" style="font-size:13px;font-family:var(--font);font-weight:400;color:var(--text-dim)">×</button>
+            <div class="sav-chevron" id="sav-chv-${bank.id}" style="font-size:12px;color:var(--text-dim);margin-left:2px">▾</div>
+          </div>
+        </div>
+        <div class="savings-detail" id="sav-detail-${bank.id}">
+          <div class="sav-starting">
+            <span>Starting balance</span>
+            <input type="number" class="sav-start-input" data-bank="${bank.id}" value="${S.savingsStarting[bank.id]||''}" placeholder="0.00" step="0.01">
+          </div>
+          <div class="sav-starting" style="border-top:none;padding-top:0">
+            <span style="font-size:11px;color:var(--text-dim)">As of date</span>
+            <input type="date" class="sav-startdate-input" data-bank="${bank.id}" value="${(S.savingsStartDate&&S.savingsStartDate[bank.id])||todayStr()}" style="width:auto;color-scheme:dark;font-family:var(--mono);font-size:11px">
+          </div>
+          ${txHtml}
+        </div>
+      </div>`;
+  }
+  el.innerHTML=html;
+
+  el.querySelectorAll('.sav-card-top').forEach(top=>{
+    top.addEventListener('click',e=>{
+      if (e.target.closest('button')||e.target.closest('.drag-handle')||e.target.closest('.sav-actions')) return;
+      const bankId=top.closest('.savings-card').dataset.bank;
+      const detail=document.getElementById('sav-detail-'+bankId);
+      const chv=document.getElementById('sav-chv-'+bankId);
+      const open=detail.classList.toggle('open');
+      chv.classList.toggle('open',open);
+    });
+  });
+  el.querySelectorAll('.sav-start-input').forEach(inp=>{
+    inp.addEventListener('change',()=>{
+      S.savingsStarting[inp.dataset.bank]=parseFloat(inp.value)||0;
+      if(!S.savingsStartDate) S.savingsStartDate={};
+      // default the date to today if not set yet
+      if(!S.savingsStartDate[inp.dataset.bank]) S.savingsStartDate[inp.dataset.bank]=todayStr();
+      save(); renderSavings();
+    });
+  });
+  el.querySelectorAll('.sav-startdate-input').forEach(inp=>{
+    inp.addEventListener('change',()=>{
+      if(!S.savingsStartDate) S.savingsStartDate={};
+      S.savingsStartDate[inp.dataset.bank]=inp.value;
+      save(); renderSavings();
+    });
+  });
+  el.querySelectorAll('.sav-edit-btn').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      const bank=S.banks.find(b=>b.id===btn.dataset.bank);
+      if (!bank) return;
+      showModal(`
+        <div class="modal-title">Edit Account</div>
+        <div class="modal-body">
+          <div style="display:flex;gap:8px">
+            <div><div class="modal-field-label">Icon</div>
+              <input class="field" id="se-emoji" value="${bank.emoji}" maxlength="2" style="width:54px;text-align:center"></div>
+            <div style="flex:1"><div class="modal-field-label">Name</div>
+              <input class="field" id="se-name" value="${bank.name}"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" id="se-save">Save</button>
+          <button class="btn btn-ghost" id="se-cancel">Cancel</button>
+        </div>
+      `);
+      document.getElementById('se-save').addEventListener('click',()=>{
+        bank.emoji=document.getElementById('se-emoji').value.trim()||bank.emoji;
+        bank.name=document.getElementById('se-name').value.trim()||bank.name;
+        save(); closeModal(); renderSavings();
+      });
+      document.getElementById('se-cancel').addEventListener('click',closeModal);
+    });
+  });
+  el.querySelectorAll('.sav-del-btn').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      const bank=S.banks.find(b=>b.id===btn.dataset.bank);
+      if (!bank) return;
+      showConfirmModal(`Delete "${bank.name}"? This won't delete transactions.`,()=>{
+        S.banks=S.banks.filter(b=>b.id!==bank.id);
+        save(); renderSavings();
+      });
+    });
+  });
+  if(typeof savReorder!=='undefined'&&savReorder) el.classList.add('reorder-active');
+  initTouchDrag(el, '.savings-card', '.drag-handle', (from,to)=>{
+    const arr=S.banks;
+    const item=arr.splice(from,1)[0];
+    arr.splice(to,0,item);
+    save(); renderSavings();
+  });
+}
+
+
+// ═══════════════════════════════════════
 // STATS TAB
 // ═══════════════════════════════════════
 
@@ -1772,6 +2384,16 @@ function getDateRange(range) {
 function filterTx(range) {
   const {from,to}=getDateRange(range);
   return S.transactions.filter(t=>t.date>=from&&t.date<=to);
+}
+
+const EYE_OPEN_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7c1.6 0 3 .4 4.2 1M22 12s-3 7-10 7c-1.6 0-3-.4-4.2-1"/><line x1="3" y1="3" x2="21" y2="21"/></svg>';
+
+function maskAmt(str){ return S.hideAmounts ? 'RM ****' : str; }
+
+function updateEyeBtn(){
+  const btn=document.getElementById('stats-eye-btn');
+  if(btn) btn.innerHTML = S.hideAmounts ? EYE_OFF_SVG : EYE_OPEN_SVG;
 }
 
 function renderStats() {
@@ -1805,22 +2427,23 @@ function renderStats() {
   }
 
   document.getElementById('stats-cards').innerHTML=`
-    <div class="stats-card"><div class="sc-label">💰 Income</div><div class="sc-amount income">RM ${totalInc.toFixed(2)}</div></div>
-    <div class="stats-card"><div class="sc-label">💸 Expenses</div><div class="sc-amount expense">RM ${totalExp.toFixed(2)}</div></div>
+    <div class="stats-card"><div class="sc-label">💰 Income</div><div class="sc-amount income">${maskAmt('RM '+totalInc.toFixed(2))}</div></div>
+    <div class="stats-card"><div class="sc-label">💸 Expenses</div><div class="sc-amount expense">${maskAmt('RM '+totalExp.toFixed(2))}</div></div>
     <div class="stats-card">
       <div class="sc-label">
         <span>${netLabel}</span>
         <button class="sc-pick-btn" id="stats-bank-pick">▾</button>
       </div>
-      <div class="sc-amount ${netClass}">${netAmt}</div>
+      <div class="sc-amount ${netClass}">${maskAmt(netAmt)}</div>
       <div style="font-size:9px;color:var(--text-dim);margin-top:3px">${netSub}</div>
     </div>
     <div class="stats-card">
       <div class="sc-label">💰 Savings</div>
-      <div class="sc-amount accent">RM ${manualSavingsTotal.toFixed(2)}</div>
+      <div class="sc-amount accent">${maskAmt('RM '+manualSavingsTotal.toFixed(2))}</div>
       <div style="font-size:9px;color:var(--text-dim);margin-top:3px">starting balances</div>
     </div>
   `;
+  updateEyeBtn();
   document.getElementById('stats-bank-pick').addEventListener('click',()=>{
     const rows=`<div class="cat-pick-row${!statsBalanceBankId?' sel':''}" id="spick-none">
       <span style="font-size:18px">📊</span><span style="font-size:14px;flex:1">All banks (overall)</span>
@@ -2012,6 +2635,7 @@ function renderSettings() {
   renderSettingsCats();
   renderSettingsBanks();
   renderSettingsLearned();
+  renderBackupReminder();
 }
 
 function renderSettingsCats() {
@@ -2328,17 +2952,56 @@ function switchTab(name) {
 // IMPORT / EXPORT
 // ═══════════════════════════════════════
 
-function exportJSON() {
+async function exportJSON() {
   const json=JSON.stringify(S,null,2);
+  const filename='exps-backup-'+todayStr()+'.json';
+  const blob=new Blob([json],{type:'application/json'});
+
+  // Try Web Share API first (iOS → share sheet → Notes / iCloud Drive / Files)
   try {
-    const blob=new Blob([json],{type:'application/json'});
+    const file=new File([blob],filename,{type:'application/json'});
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({title:'exps tracker backup',text:'Backup '+todayStr(),files:[file]});
+      S.lastBackupDate=todayStr(); save(); renderBackupReminder();
+      return;
+    }
+  } catch(e){
+    if(e.name==='AbortError') return; // user cancelled share sheet — don't fallback
+  }
+
+  // Fallback: download file (desktop / Android)
+  try {
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');
-    a.href=url; a.download='exps-backup-'+todayStr()+'.json';
+    a.href=url; a.download=filename;
     document.body.appendChild(a); a.click();
     setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); },200);
+    S.lastBackupDate=todayStr(); save(); renderBackupReminder();
     toast('Backup downloaded');
-  } catch(e) { toast('Download failed'); }
+  } catch(e){ toast('Backup failed — try again'); }
+}
+
+function renderBackupReminder(){
+  const el=document.getElementById('backup-reminder');
+  if(!el)return;
+  const base='text-align:center;font-size:11px;line-height:1.4;margin:0 12px 8px;font-family:var(--font);';
+  const last=S.lastBackupDate;
+  if(!last){
+    el.style.cssText=base+'color:var(--accent)';
+    el.textContent='No backup yet — tap below to save your data';
+    return;
+  }
+  const days=Math.floor((new Date()-new Date(last+'T00:00:00'))/(864e5));
+  if(days===0){
+    el.style.cssText=base+'color:var(--success)';
+    el.textContent='✓ Backed up today';
+  } else if(days<=7){
+    el.style.cssText=base+'color:var(--text-dim)';
+    el.textContent=`Last backup: ${days} day${days>1?'s':''} ago`;
+  } else {
+    el.style.cssText=base+'color:var(--danger)';
+    el.textContent=`Last backup: ${days} days ago — please back up soon`;
+  }
 }
 
 function importJSON(file) {
@@ -2424,7 +3087,7 @@ function initCustomRange() {
 }
 
 function openCategoryPicker() {
-  const cats=S.categories.filter(c=>c.id!=='transfer');
+  const cats=S.categories.filter(c=>c.id!=='transfer'&&!c.isIncome);
   const rows=cats.map(c=>`
     <div class="cat-pick-row${custSelectedCatId===c.id?' sel':''}" data-id="${c.id}">
       <span style="font-size:18px">${c.emoji}</span>
@@ -2578,10 +3241,13 @@ function renderBudgetProgress() {
       </div>
       <div class="bp-bar-labels">
         <span class="bp-bar-spent">Spent RM ${spent.toFixed(2)}</span>
-        <span class="bp-bar-remaining${isWarn?' warn':''}">Remaining RM ${remaining.toFixed(2)}</span>
+        <span style="font-size:10px;color:var(--text-dim)">Budget RM ${limit.toFixed(2)}</span>
       </div>
       <div class="bp-track"><div class="bp-fill" style="width:${pct}%;background:${bc}"></div></div>
-      <div class="bp-msg ${msgClass}">${msg}</div>
+      <div class="bp-bar-labels" style="margin-top:5px;margin-bottom:0">
+        <span class="bp-msg ${msgClass}" style="margin-top:0">${msg}</span>
+        <span class="bp-bar-remaining${isWarn?' warn':''}">Can spend RM ${remaining.toFixed(2)}</span>
+      </div>
     </div>`;
   }).join('');
 }
@@ -2589,7 +3255,7 @@ function renderBudgetProgress() {
 function openBudgetCatPicker() {
   if (!S.budgetLimits) S.budgetLimits={};
   if (!S.budgetVisible) S.budgetVisible={};
-  const cats=S.categories.filter(c=>c.id!=='transfer'&&c.id!=='income');
+  const cats=S.categories.filter(c=>c.id!=='transfer'&&!c.isIncome);
   const rows=cats.map(c=>{
     const on=!!S.budgetVisible[c.id];
     const limit=S.budgetLimits[c.id]||'';
@@ -2652,7 +3318,7 @@ function renderBudgetPage() {
   const el=document.getElementById('budget-content');
   if (!S.budgetLimits) S.budgetLimits={};
   if (!S.budgetVisible) S.budgetVisible={};
-  const cats=S.categories.filter(c=>c.id!=='transfer'&&c.id!=='income');
+  const cats=S.categories.filter(c=>c.id!=='transfer'&&!c.isIncome);
   el.innerHTML=cats.map(cat=>{
     const limit=S.budgetLimits[cat.id]||'';
     return `<div class="budget-cat-item">
@@ -2741,6 +3407,12 @@ function initEvents() {
     });
   });
   // Custom range toggle
+  // Eye toggle - hide/show stats amounts
+  document.getElementById('stats-eye-btn').addEventListener('click',()=>{
+    S.hideAmounts=!S.hideAmounts;
+    save();
+    renderStats();
+  });
   document.getElementById('btn-custom-range').addEventListener('click',()=>{
     const panel=document.getElementById('custom-range-panel');
     const isOpen=panel.style.display!=='none';
