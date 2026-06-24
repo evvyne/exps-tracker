@@ -1008,6 +1008,8 @@ let S = {
   budgetVisible: {},  // catId → bool
   hideAmounts: false, // eye toggle for stats
   lastBackupDate: null, // YYYY-MM-DD of last JSON export
+  deletedBankIds: [],   // default bank ids the user deleted (don't re-add)
+  deletedCatIds: [],    // default category ids the user deleted (don't re-add)
 };
 let pendingCategorySelection = null; // { parsed, resolve }
 let statsRange = 'month';
@@ -1053,12 +1055,14 @@ function load() {
         S.transactions.forEach(t=>{ if(t.categoryId==='income') t.categoryId='inc_salary'; });
         if(S.budgetLimits&&S.budgetLimits['income']){ S.budgetLimits['inc_salary']=S.budgetLimits['income']; delete S.budgetLimits['income']; }
       }
-      // ensure new default cats/banks are merged
+      // ensure new default cats/banks are merged — but NOT ones the user deleted
+      if(!S.deletedBankIds) S.deletedBankIds=[];
+      if(!S.deletedCatIds) S.deletedCatIds=[];
       for (const dc of DEFAULT_CATS) {
-        if (!S.categories.find(c => c.id === dc.id)) S.categories.push(dc);
+        if (!S.categories.find(c => c.id === dc.id) && !S.deletedCatIds.includes(dc.id)) S.categories.push(dc);
       }
       for (const db of DEFAULT_BANKS) {
-        if (!S.banks.find(b => b.id === db.id)) S.banks.push(db);
+        if (!S.banks.find(b => b.id === db.id) && !S.deletedBankIds.includes(db.id)) S.banks.push(db);
       }
     }
   } catch(e) {}
@@ -2344,6 +2348,7 @@ function renderSavings() {
       if (!bank) return;
       showConfirmModal(`Delete "${bank.name}"? This won't delete transactions.`,()=>{
         S.banks=S.banks.filter(b=>b.id!==bank.id);
+        if(DEFAULT_BANKS.find(d=>d.id===bank.id)){ if(!S.deletedBankIds)S.deletedBankIds=[]; if(!S.deletedBankIds.includes(bank.id))S.deletedBankIds.push(bank.id); }
         save(); renderSavings();
       });
     });
@@ -2667,6 +2672,7 @@ function renderSettingsCats() {
       if (!cat) return;
       showConfirmModal(`Delete category "${cat.name}"?`,()=>{
         S.categories=S.categories.filter(c=>c.id!==btn.dataset.id);
+        if(DEFAULT_CATS.find(d=>d.id===btn.dataset.id)){ if(!S.deletedCatIds)S.deletedCatIds=[]; if(!S.deletedCatIds.includes(btn.dataset.id))S.deletedCatIds.push(btn.dataset.id); }
         save(); renderSettingsCats();
       });
     });
@@ -2747,6 +2753,7 @@ function renderSettingsBanks() {
       if (!bank) return;
       showConfirmModal(`Delete "${bank.name}"?`,()=>{
         S.banks=S.banks.filter(b=>b.id!==btn.dataset.id);
+        if(DEFAULT_BANKS.find(d=>d.id===btn.dataset.id)){ if(!S.deletedBankIds)S.deletedBankIds=[]; if(!S.deletedBankIds.includes(btn.dataset.id))S.deletedBankIds.push(btn.dataset.id); }
         save(); renderSettingsBanks();
       });
     });
