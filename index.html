@@ -291,9 +291,9 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
 .fixed-meta{font-size:11px;color:var(--text-dim);margin-top:3px;font-family:var(--mono)}
 .fixed-fields{display:flex;gap:6px;align-items:center;flex-shrink:0}
 .fixed-bank-sel{
-  padding:6px 10px;background:var(--surface2);border:1px solid var(--border);
+  padding:6px 8px;background:var(--surface2);border:1px solid var(--border);
   border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);font-size:12px;
-  outline:none;cursor:pointer;
+  outline:none;cursor:pointer;max-width:92px;
 }
 .fixed-amount-input{
   width:80px;padding:6px 10px;
@@ -1920,7 +1920,7 @@ function renderFixed() {
   const cm=todayStr().slice(0,7);
   let html='';
   for (const item of S.fixedExpenses) {
-    const bankOpts=S.banks.map(b=>`<option value="${b.id}"${b.id===item.bankId?' selected':''}>${b.emoji} ${b.name}</option>`).join('');
+    const bankOpts=S.banks.filter(b=>b.type!=='instalment').map(b=>`<option value="${b.id}"${b.id===item.bankId?' selected':''}>${b.emoji} ${b.name}</option>`).join('');
     const {daysUntil}=getDueInfo(item);
     const isDue=daysUntil<=3&&daysUntil>=0;
     const paidThisMonth=item.lastPaidDate===cm;
@@ -2016,7 +2016,7 @@ function renderFixed() {
 
 function showFixedModal(item) {
   const isEdit=!!item;
-  const bankOpts=S.banks.map(b=>`<option value="${b.id}"${item&&b.id===item.bankId?' selected':''}>${b.emoji} ${b.name}</option>`).join('');
+  const bankOpts=S.banks.filter(b=>b.type!=='instalment').map(b=>`<option value="${b.id}"${item&&b.id===item.bankId?' selected':''}>${b.emoji} ${b.name}</option>`).join('');
   const catOpts=S.categories.filter(c=>c.id!=='transfer'&&!c.isIncome).map(c=>`<option value="${c.id}"${item&&c.id===item.categoryId?' selected':''}>${c.emoji} ${c.name}</option>`).join('');
   const curCycle=item?item.cycle:'monthly';
   const curDay=item?item.dayOfMonth||1:1;
