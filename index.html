@@ -13,6 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root {
   --bg: #0d0d0d;
@@ -93,6 +94,20 @@ body{font-family:var(--font);color:var(--text);display:flex;flex-direction:colum
   color:var(--text-muted);letter-spacing:.5px;text-transform:uppercase;
 }
 .section-header .sh-right{display:flex;gap:8px;align-items:center}
+.sav-section-title{
+  padding:14px 16px 6px;
+  font-size:11px;font-weight:600;
+  color:var(--accent);letter-spacing:.5px;text-transform:uppercase;
+}
+.settings-sub-hdr{
+  padding:9px 16px;font-size:12px;font-weight:600;
+  color:var(--text-muted);letter-spacing:.3px;
+  cursor:pointer;user-select:none;
+  display:flex;align-items:center;gap:6px;
+  border-top:1px solid var(--border);
+}
+.settings-sub-hdr:first-child{border-top:none}
+.sub-chevron{font-size:10px;transition:transform .2s;margin-left:auto}
 
 /* ── BUTTONS ── */
 .btn{
@@ -793,7 +808,7 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
   <!-- ── SAVINGS ── -->
   <div class="tab-pane" id="tab-savings">
     <div class="section-header">
-      <span>Account Balances</span>
+      <span>Accounts</span>
       <div style="display:flex;gap:6px">
         <button class="btn btn-ghost btn-sm reorder-btn" id="sav-reorder-btn">⇅ Reorder</button>
         <button class="btn btn-ghost btn-sm" id="sav-add-btn">+ Add</button>
@@ -870,9 +885,16 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
   <!-- ── SETTINGS ── -->
   <div class="tab-pane" id="tab-settings">
     <div class="settings-section">
+      <div class="settings-section-title">Currency</div>
+      <div style="padding:4px 12px 8px">
+        <select class="field" id="currency-select" style="width:100%;font-size:14px"></select>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.4">Each currency has its own separate banks & records. Switching shows only that currency's data.</div>
+      </div>
+    </div>
+    <div class="settings-section">
       <div class="settings-section-title" style="display:flex;justify-content:space-between;align-items:center">
         <span>Categories</span>
-        <div style="display:flex;gap:6px;align-items:center">
+        <div class="settings-cats-actions" style="display:flex;gap:6px;align-items:center">
           <button class="btn btn-ghost btn-sm reorder-btn" id="settings-reorder-cats" style="padding:5px 10px">⇅</button>
           <button class="btn btn-ghost btn-sm" id="settings-add-cat">+ Add</button>
         </div>
@@ -896,11 +918,13 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
       <div class="settings-btn-row">
         <button class="btn btn-primary settings-btn-full" id="btn-export-json" style="font-size:14px">↑ Backup to Notes / Files</button>
         <button class="btn btn-ghost settings-btn-full" id="btn-import-json">↑ Import JSON</button>
+        <button class="btn btn-ghost settings-btn-full" id="btn-import-excel">📊 Import Excel (.xlsx)</button>
         <button class="btn settings-btn-full" style="background:var(--danger-dim);color:var(--danger)" id="btn-clear-data">Clear All Data</button>
       </div>
     </div>
     <div style="height:24px"></div>
     <input type="file" id="import-json-input" accept=".json" style="display:none">
+    <input type="file" id="import-excel-input" accept=".xlsx,.xls" style="display:none">
   </div>
 
 </div><!-- /content -->
@@ -937,7 +961,7 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
 // ═══════════════════════════════════════
 
 const DEFAULT_CATS = [
-  {id:'food',emoji:'🍜',name:'Food',keywords:['吃','午餐','晚餐','早餐','宵夜','makan','lunch','dinner','breakfast','supper','tapau','mamak','kopitiam','cafe','restaurant','mcd','kfc','nasi','mee','roti','kopi','bubble tea','boba','麦当劳','food']},
+  {id:'food',emoji:'🍜',name:'Food',keywords:['吃','午餐','晚餐','早餐','宵夜','下午茶','茶','饭','面','粥','点心','咖啡','奶茶','makan','lunch','dinner','breakfast','supper','teatime','tea time','brunch','tapau','mamak','kopitiam','cafe','restaurant','mcd','mcdonald','kfc','starbucks','nasi','mee','noodles','noodle','rice','roti','kopi','teh','bubble tea','boba','milk tea','麦当劳','food','meal','snack','drink','drinks','chicken','pork','beef','fish','burger','pizza','pasta','sushi','ramen','curry','satay','char kuey teow','wantan','wanton','dim sum','bak kut teh','laksa','cendol','ice cream','cake','bread','coffee','bihun','kuetiau','economy rice','chap fan','zhap fan','mixed rice']},
   {id:'transport',emoji:'🚗',name:'Transport',keywords:['grab','taxi','bus','lrt','mrt','ktm','monorail','parking','toll','highway','plus','sprint','kesas','grabcar']},
   {id:'petrol',emoji:'⛽',name:'Petrol',keywords:['petrol','fuel','shell','petronas','caltex','petron','ron95','ron97','diesel','minyak','油']},
   {id:'essentials',emoji:'🧴',name:'Daily Essentials',keywords:['toiletries','shampoo','sabun','tissue','detergent','pencuci','日用品']},
@@ -964,9 +988,79 @@ const DEFAULT_CATS = [
   {id:'inc_salary',emoji:'💵',name:'Salary',isIncome:true,keywords:['salary','gaji','薪水','工资','月薪','底薪','wages','payroll']},
   {id:'inc_side',emoji:'💼',name:'Side Income',isIncome:true,keywords:['side income','freelance','tiktok','stream','streaming','douyin','直播','副业','外快','part time','parttime','gig','commission','komisyen','tutor','tuition']},
   {id:'inc_invest',emoji:'📊',name:'Investment Income',isIncome:true,keywords:['dividend','dividen','股息','interest','bunga','利息','capital gain','投资收入','rental income','sewa terima']},
+  {id:'inc_loan',emoji:'🤝',name:'Loan Repayment',isIncome:true,keywords:['loan repay','loan repayment','repay loan','loan back','lent','借出回收','还款收入','欠款收回','还我的钱','还贷']},
   {id:'transfer',emoji:'🔄',name:'Transfer',keywords:['transfer','topup','pindah']},
+  {id:'transfer_in',emoji:'📥',name:'Transfer In',keywords:[]},
+  {id:'transfer_out',emoji:'📤',name:'Transfer Out',keywords:[]},
+  {id:'reimbursement',emoji:'💳',name:'Reimbursement',keywords:[]},
   {id:'other',emoji:'🗂️',name:'Other',keywords:[]},
 ];
+
+const CURRENCIES = {
+  MYR: {
+    symbol: 'RM', name: 'Malaysian Ringgit', flag: '🇲🇾',
+    banks: [
+      {id:'mbb',emoji:'🏦',name:'Maybank',aliases:['maybank','mbb','m2u'],type:'bank'},
+      {id:'cimb',emoji:'🏦',name:'CIMB',aliases:['cimb'],type:'bank'},
+      {id:'rhb',emoji:'🏦',name:'RHB',aliases:['rhb'],type:'bank'},
+      {id:'pbb',emoji:'🏦',name:'Public Bank',aliases:['pbb','public bank','publicbank'],type:'bank'},
+      {id:'hlb',emoji:'🏦',name:'HLB',aliases:['hlb','hongleong','hong leong','hl bank'],type:'bank'},
+      {id:'tng',emoji:'💙',name:"Touch 'n Go",aliases:['tng','touch n go','touchngo','touch&go','touch and go'],type:'ewallet'},
+      {id:'grabpay',emoji:'💚',name:'GrabPay',aliases:['grabpay','grab pay'],type:'ewallet'},
+      {id:'cash',emoji:'💵',name:'Cash',aliases:['cash','duit','wang','duit tunai'],type:'cash'},
+    ]
+  },
+  USD: {
+    symbol: '$', name: 'US Dollar', flag: '🇺🇸',
+    banks: [
+      {id:'chase',emoji:'🏦',name:'Chase',aliases:['chase','jpmorgan'],type:'bank'},
+      {id:'bofa',emoji:'🏦',name:'Bank of America',aliases:['bofa','bank of america','boa'],type:'bank'},
+      {id:'wellsfargo',emoji:'🏦',name:'Wells Fargo',aliases:['wells fargo','wellsfargo','wells'],type:'bank'},
+      {id:'capitalone',emoji:'🏦',name:'Capital One',aliases:['capital one','capitalone'],type:'bank'},
+      {id:'paypal',emoji:'💸',name:'PayPal',aliases:['paypal','pp'],type:'ewallet'},
+      {id:'applecash',emoji:'🍎',name:'Apple Cash',aliases:['apple cash','applecash','apple pay','applepay'],type:'ewallet'},
+      {id:'cash_usd',emoji:'💵',name:'Cash',aliases:['cash'],type:'cash'},
+    ]
+  },
+  SGD: {
+    symbol: 'S$', name: 'Singapore Dollar', flag: '🇸🇬',
+    banks: [
+      {id:'dbs',emoji:'🏦',name:'DBS/POSB',aliases:['dbs','posb'],type:'bank'},
+      {id:'ocbc_sg',emoji:'🏦',name:'OCBC',aliases:['ocbc'],type:'bank'},
+      {id:'uob',emoji:'🏦',name:'UOB',aliases:['uob'],type:'bank'},
+      {id:'revolut_sg',emoji:'💠',name:'Revolut',aliases:['revolut'],type:'ewallet'},
+      {id:'grabpay_sg',emoji:'💚',name:'GrabPay',aliases:['grabpay','grab pay'],type:'ewallet'},
+      {id:'paynow',emoji:'⚡',name:'PayNow',aliases:['paynow','pay now'],type:'ewallet'},
+      {id:'cash_sgd',emoji:'💵',name:'Cash',aliases:['cash'],type:'cash'},
+    ]
+  },
+  AUD: {
+    symbol: 'A$', name: 'Australian Dollar', flag: '🇦🇺',
+    banks: [
+      {id:'cba',emoji:'🏦',name:'Commonwealth Bank',aliases:['cba','commonwealth','commbank','comm bank'],type:'bank'},
+      {id:'anz',emoji:'🏦',name:'ANZ',aliases:['anz'],type:'bank'},
+      {id:'westpac',emoji:'🏦',name:'Westpac',aliases:['westpac'],type:'bank'},
+      {id:'nab',emoji:'🏦',name:'NAB',aliases:['nab','national australia bank'],type:'bank'},
+      {id:'revolut_au',emoji:'💠',name:'Revolut',aliases:['revolut'],type:'ewallet'},
+      {id:'paypal_au',emoji:'💸',name:'PayPal',aliases:['paypal','pp'],type:'ewallet'},
+      {id:'applepay_au',emoji:'🍎',name:'Apple Pay',aliases:['apple pay','applepay'],type:'ewallet'},
+      {id:'cash_aud',emoji:'💵',name:'Cash',aliases:['cash'],type:'cash'},
+    ]
+  },
+  EUR: {
+    symbol: '€', name: 'Euro', flag: '🇮🇪',
+    banks: [
+      {id:'aib',emoji:'🏦',name:'AIB',aliases:['aib','allied irish'],type:'bank'},
+      {id:'boi',emoji:'🏦',name:'Bank of Ireland',aliases:['bank of ireland','boi'],type:'bank'},
+      {id:'ptsb',emoji:'🏦',name:'PTSB',aliases:['ptsb','permanent tsb'],type:'bank'},
+      {id:'n26_ie',emoji:'🏦',name:'N26',aliases:['n26'],type:'bank'},
+      {id:'revolut_ie',emoji:'💠',name:'Revolut',aliases:['revolut'],type:'ewallet'},
+      {id:'paypal_ie',emoji:'💸',name:'PayPal',aliases:['paypal','pp'],type:'ewallet'},
+      {id:'applepay_ie',emoji:'🍎',name:'Apple Pay',aliases:['apple pay','applepay'],type:'ewallet'},
+      {id:'cash_eur',emoji:'💵',name:'Cash',aliases:['cash'],type:'cash'},
+    ]
+  }
+};
 
 const DEFAULT_BANKS = [
   {id:'hlb',emoji:'🏦',name:'Hong Leong',aliases:['hlb','hongleong','hong leong','hl bank'],type:'bank'},
@@ -981,20 +1075,29 @@ const DEFAULT_BANKS = [
 ];
 
 const DEFAULT_FIXED = [
-  {id:'fx1',emoji:'🎬',name:'Netflix',bankId:'hlb',amount:'',cycle:'monthly',dayOfMonth:1,paid:false,categoryId:'entertainment'},
-  {id:'fx2',emoji:'🍎',name:'iCloud+',bankId:'hlb',amount:'',cycle:'monthly',dayOfMonth:1,paid:false,categoryId:'cloud'},
-  {id:'fx3',emoji:'✨',name:'Disney+',bankId:'hlb',amount:'',cycle:'monthly',dayOfMonth:1,paid:false,categoryId:'entertainment'},
-  {id:'fx4',emoji:'▶️',name:'YouTube Premium',bankId:'hlb',amount:'',cycle:'monthly',dayOfMonth:1,paid:false,categoryId:'entertainment'},
-  {id:'fx5',emoji:'☁️',name:'Google One',bankId:'hlb',amount:'',cycle:'monthly',dayOfMonth:1,paid:false,categoryId:'cloud'},
+  {id:'fx1',emoji:'🏠',name:'Rental',bankId:'',amount:'',cycle:'monthly',dayOfMonth:1,paid:false,categoryId:'household'},
+  {id:'fx2',emoji:'🛡️',name:'Insurance',bankId:'',amount:'',cycle:'monthly',dayOfMonth:1,paid:false,categoryId:'insurance'},
+  {id:'fx3',emoji:'🌐',name:'Internet Plan',bankId:'',amount:'',cycle:'monthly',dayOfMonth:1,paid:false,categoryId:'internet'},
+  {id:'fx4',emoji:'📱',name:'Mobile Data Plan',bankId:'',amount:'',cycle:'monthly',dayOfMonth:1,paid:false,categoryId:'phone'},
+  {id:'fx5',emoji:'🎬',name:'Netflix',bankId:'',amount:'',cycle:'monthly',dayOfMonth:1,paid:false,categoryId:'entertainment'},
+  {id:'fx6',emoji:'🍎',name:'iCloud',bankId:'',amount:'',cycle:'monthly',dayOfMonth:1,paid:false,categoryId:'cloud'},
+  {id:'fx7',emoji:'✨',name:'Disney+',bankId:'',amount:'',cycle:'monthly',dayOfMonth:1,paid:false,categoryId:'entertainment'},
+  {id:'fx8',emoji:'🎵',name:'Spotify',bankId:'',amount:'',cycle:'monthly',dayOfMonth:1,paid:false,categoryId:'entertainment'},
 ];
 
+const INTERNAL_CATS = new Set(['transfer','transfer_in','transfer_out','reimbursement']);
 const CHART_COLORS = ['#f5a623','#e04444','#4cd964','#007aff','#af52de','#ff2d55','#5ac8fa','#ff9500','#34c759','#ff6b35','#32ade6','#ac8e68'];
 
 // ═══════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════
 
-const SK = 'exps_v2';
+const SK_PREFIX = 'exps_v2_';
+const SK_CUR = 'exps_v2_active_currency';
+function currencyKey(cur){ return SK_PREFIX + cur; }
+function activeCurrency(){ return localStorage.getItem(SK_CUR) || 'MYR'; }
+function curSym(){ return (CURRENCIES[S.currency]&&CURRENCIES[S.currency].symbol)||'RM'; }
+const SK = 'exps_v2'; // legacy key (for migration)
 let S = {
   transactions: [],
   fixedExpenses: [...DEFAULT_FIXED],
@@ -1007,9 +1110,12 @@ let S = {
   budgetLimits: {},   // catId → monthly limit
   budgetVisible: {},  // catId → bool
   hideAmounts: false, // eye toggle for stats
+  currency: 'MYR', // active currency for this dataset
   lastBackupDate: null, // YYYY-MM-DD of last JSON export
   deletedBankIds: [],   // default bank ids the user deleted (don't re-add)
   deletedCatIds: [],    // default category ids the user deleted (don't re-add)
+  deletedFixedNames: [], // default fixed item names the user deleted (don't re-add)
+  installments: [], // active installment plans
 };
 let pendingCategorySelection = null; // { parsed, resolve }
 let statsRange = 'month';
@@ -1040,14 +1146,91 @@ function resetFixedIfNewMonth() {
   if(changed)save();
 }
 let statsBalanceBankId = null; // which bank to show in 4th stats card
+let statsSavingsBankId = null; // which savings-destination bank to filter (null = all)
+let statsIncomeBankId = null; // which bank to filter income by (null = all)
 
-function save() { try { localStorage.setItem(SK, JSON.stringify(S)); } catch(e){} }
+// Banks that have ever been a savings-transfer destination (learned from history)
+function getSavingsBankIds() {
+  // Rule: explicit role setting always overrides transaction history
+  //   role='savings'   → always include
+  //   role=anything else (including null after being savings) → exclude
+  //   savingsExcluded=true → explicitly removed, exclude even with no role
+  // Installment & credit-card accounts are NEVER savings.
+  const ids=new Set();
+  const isEligible=(b)=> b && b.type!=='instalment' && b.type!=='creditcard';
+  for (const b of S.banks) {
+    if (!isEligible(b)) continue;
+    if (b.role==='savings') { ids.add(b.id); continue; }
+    if (b.role||b.savingsExcluded) continue; // explicit non-savings role → skip
+    // No explicit role ever set — fall back to legacy isSavingsBank
+    if (b.isSavingsBank) { ids.add(b.id); continue; }
+  }
+  // tx history fallback only for eligible banks with no explicit role set
+  for (const tx of S.transactions) {
+    if (tx.type!=='savings' || !tx.toBankId) continue;
+    const b=bankById(tx.toBankId);
+    if(isEligible(b) && !b.role && !b.savingsExcluded) ids.add(tx.toBankId);
+  }
+  return [...ids];
+}
+// Savings total = actual balance of savings-role accounts (real money in them),
+// NOT the sum of past savings-transfer inflows. Installment/credit-card accounts are never savings.
+function computeSavingsTotal(bankId) {
+  if (bankId) {
+    const b=bankById(bankId);
+    if(!b || b.type==='instalment' || b.type==='creditcard') return 0;
+    return computeBalance(bankId);
+  }
+  // all savings accounts combined
+  let total=0;
+  for (const id of getSavingsBankIds()) {
+    const b=bankById(id);
+    if(!b || b.type==='instalment' || b.type==='creditcard') continue;
+    total+=computeBalance(id);
+  }
+  return total;
+}
+
+function save() {
+  try {
+    const cur=S.currency||'MYR';
+    localStorage.setItem(currencyKey(cur), JSON.stringify(S));
+    localStorage.setItem(SK_CUR, cur);
+  } catch(e){}
+}
+function freshStateForCurrency(cur){
+  const banks = CURRENCIES[cur] ? JSON.parse(JSON.stringify(CURRENCIES[cur].banks)) : JSON.parse(JSON.stringify(DEFAULT_BANKS));
+  return {
+    transactions: [],
+    fixedExpenses: JSON.parse(JSON.stringify(DEFAULT_FIXED)),
+    savingsStarting: {}, savingsStartDate: {},
+    categories: JSON.parse(JSON.stringify(DEFAULT_CATS)),
+    banks: banks,
+    learnedKeywords: {}, spendingLimits: {}, budgetLimits: {}, budgetVisible: {},
+    hideAmounts: false, currency: cur,
+    lastBackupDate: null, deletedBankIds: [], deletedCatIds: [], deletedFixedNames: [], installments: [],
+  };
+}
+
 function load() {
   try {
-    const d = localStorage.getItem(SK);
+    const cur = activeCurrency();
+    // ── One-time migration: move legacy 'exps_v2' data → MYR currency key ──
+    const legacy = localStorage.getItem(SK);
+    if (legacy && !localStorage.getItem(currencyKey('MYR'))) {
+      try {
+        const parsed = JSON.parse(legacy);
+        parsed.currency = 'MYR';
+        localStorage.setItem(currencyKey('MYR'), JSON.stringify(parsed));
+        localStorage.removeItem(SK); // remove legacy so migration only runs once
+      } catch(e){}
+    }
+
+    const d = localStorage.getItem(currencyKey(cur));
     if (d) {
       const parsed = JSON.parse(d);
-      S = {...S, ...parsed};
+      S = {...freshStateForCurrency(cur), ...parsed};
+      S.currency = cur;
       // Migrate old single 'income' category to new 'inc_salary'
       const hadOldIncome=S.categories.find(c=>c.id==='income');
       if (hadOldIncome) {
@@ -1061,9 +1244,27 @@ function load() {
       for (const dc of DEFAULT_CATS) {
         if (!S.categories.find(c => c.id === dc.id) && !S.deletedCatIds.includes(dc.id)) S.categories.push(dc);
       }
-      for (const db of DEFAULT_BANKS) {
+      // Merge this currency's default banks (not user-deleted ones)
+      const curBanks = CURRENCIES[cur] ? CURRENCIES[cur].banks : DEFAULT_BANKS;
+      for (const db of curBanks) {
         if (!S.banks.find(b => b.id === db.id) && !S.deletedBankIds.includes(db.id)) S.banks.push(db);
       }
+      // Merge any missing default fixed items (matched by name), unless user deleted them.
+      // This brings the new starter list into existing datasets without touching items the user set up.
+      if(!S.deletedFixedNames) S.deletedFixedNames=[];
+      if(!S.fixedExpenses) S.fixedExpenses=[];
+      for (const df of DEFAULT_FIXED) {
+        const exists=S.fixedExpenses.some(f=>f.name.toLowerCase()===df.name.toLowerCase());
+        const wasDeleted=S.deletedFixedNames.map(n=>n.toLowerCase()).includes(df.name.toLowerCase());
+        if(!exists && !wasDeleted){
+          // give it a fresh unique id to avoid clashes with user items
+          S.fixedExpenses.push({...JSON.parse(JSON.stringify(df)), id:uid()});
+        }
+      }
+    } else {
+      // First time in this currency → seed fresh
+      S = freshStateForCurrency(cur);
+      save();
     }
   } catch(e) {}
 }
@@ -1092,10 +1293,10 @@ function timeStr() {
   const d = new Date();
   return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
 }
-function fmtAmt(n) { return 'RM '+Math.abs(n).toFixed(2); }
+function fmtAmt(n) { return curSym()+' '+Math.abs(n).toFixed(2); }
 function fmtAmtSigned(n, type) {
   if (type==='income') return '+RM '+Math.abs(n).toFixed(2);
-  if (type==='transfer') return 'RM '+Math.abs(n).toFixed(2);
+  if (type==='transfer') return curSym()+' '+Math.abs(n).toFixed(2);
   return '−RM '+Math.abs(n).toFixed(2);
 }
 function catById(id) { return S.categories.find(c => c.id === id); }
@@ -1127,6 +1328,12 @@ function toast(msg) {
 
 const MONTH_NAMES = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
 const MONTH_FULL = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+function monthIndexFromName(tk){
+  const t=tk.toLowerCase();
+  const i1=MONTH_NAMES.indexOf(t); if(i1>=0)return i1;
+  const i2=MONTH_FULL.indexOf(t); if(i2>=0)return i2;
+  return -1;
+}
 
 function extractDate(text) {
   const lower = text.toLowerCase().trimStart();
@@ -1242,7 +1449,7 @@ function isTransferInput(lower) {
 }
 
 function isIncomeInput(lower, descParts) {
-  const ikw = ['salary','gaji','income','收入','薪水','工资','earnings','revenue','pendapatan','dividend','dividen','股息','利息','interest','bunga','freelance','tiktok stream','side income','副业','外快'];
+  const ikw = ['salary','gaji','income','收入','薪水','工资','earnings','revenue','pendapatan','dividend','dividen','股息','利息','interest','bunga','freelance','tiktok stream','side income','副业','外快','received','got paid','get paid','cashback','cash back','refund received','reimbursement received','bonus','commission received','收到','入账'];
   return ikw.some(k=>lower.includes(k));
 }
 
@@ -1269,6 +1476,81 @@ function parseTransfer(raw, date) {
   };
 }
 
+// Known BNPL providers (name + aliases) — used even if not added as a bank yet
+const BNPL_PROVIDERS=[
+  {id:'spl',name:'SPayLater',emoji:'🟠',aliases:['spaylater','shopee pay later','shopeepaylater','spl','shopee paylater','shopeepay later']},
+  {id:'atome',name:'Atome',emoji:'⏳',aliases:['atome']},
+  {id:'gpl',name:'GrabPayLater',emoji:'💚',aliases:['grabpaylater','gpl','grab pay later','grablater','grab paylater']},
+];
+
+// Detect a BNPL/Credit-Card installment provider from text.
+// Returns a provider object {id,name,emoji,_bankId} or null.
+function detectInstallmentProvider(text){
+  const t=' '+text.toLowerCase().replace(/[-–·]/g,' ')+' ';
+  // 1. "<word> cc" credit-card phrasing
+  const ccMatch=t.match(/\b([a-z]+)\s+cc\b/);
+  if(ccMatch){
+    const word=ccMatch[1];
+    // Reuse an existing credit-card/instalment bank if one matches this word (avoid duplicate cards)
+    const existing=S.banks.find(b=>(b.type==='creditcard'||b.type==='instalment') &&
+      (b.id==='cc_'+word || b.aliases.some(a=>a===word||a===word+' cc') || b.name.toLowerCase().includes(word)));
+    if(existing) return {id:existing.id, name:existing.name, emoji:existing.emoji, _bankId:existing.id};
+    // Otherwise create a NEW credit-card provider (type creditcard so it lives in the Credit Card section)
+    const bank=S.banks.find(b=>b.aliases.some(a=>a===word)||b.name.toLowerCase().includes(word));
+    const name=(bank?bank.name:word.toUpperCase())+' CC';
+    return ensureProviderBank({id:'cc_'+word, name, emoji:'💳', type:'creditcard', aliases:[word, word+' cc']});
+  }
+  // generic "cc" alone
+  if(/\bcc\b/.test(t) && !/\b[a-z]+\s+cc\b/.test(t)){
+    return ensureProviderBank({id:'cc_generic', name:'Credit Card', emoji:'💳', type:'creditcard'});
+  }
+  // 2. existing instalment/creditcard banks
+  for(const b of S.banks){
+    if(b.type==='instalment'||b.type==='creditcard'){
+      for(const a of b.aliases){ if(t.includes(' '+a+' ')) return {id:b.id,name:b.name,emoji:b.emoji,_bankId:b.id}; }
+      if(t.includes(' '+b.name.toLowerCase()+' ')) return {id:b.id,name:b.name,emoji:b.emoji,_bankId:b.id};
+    }
+  }
+  // 3. known BNPL keywords (auto-create the provider bank if needed)
+  for(const prov of BNPL_PROVIDERS){
+    for(const a of prov.aliases){ if(t.includes(' '+a+' ')) return ensureProviderBank(prov); }
+  }
+  return null;
+}
+
+// Make sure a provider exists as a bank (so balance/sections work); returns provider w/ _bankId.
+// Respects an explicit prov.type (e.g. 'creditcard'); defaults to 'instalment'.
+function ensureProviderBank(prov){
+  let bank=S.banks.find(b=>b.id===prov.id);
+  if(!bank){
+    bank={id:prov.id, emoji:prov.emoji||'⏳', name:prov.name, aliases:(prov.aliases||[prov.name.toLowerCase()]), type:prov.type||'instalment'};
+    S.banks.push(bank);
+    save();
+  }
+  return {id:bank.id, name:bank.name, emoji:bank.emoji, _bankId:bank.id};
+}
+
+// Remove the provider phrase (alias or "<name> cc") from the input string
+function stripProviderPhrase(str, provider){
+  let s=str.replace(/[-–·]/g,' ');
+  // remove "<word> cc" and standalone cc
+  s=s.replace(/\b[a-z]+\s+cc\b/i,' ');
+  s=s.replace(/\bcc\b/i,' ');
+  // gather aliases: from provider, its bank, and BNPL list
+  let aliases=[...(provider.aliases||[])];
+  const bank=S.banks.find(b=>b.id===provider.id);
+  if(bank) aliases=aliases.concat(bank.aliases||[]);
+  const bnpl=BNPL_PROVIDERS.find(p=>p.id===provider.id);
+  if(bnpl) aliases=aliases.concat(bnpl.aliases);
+  aliases.push(provider.name.toLowerCase());
+  // sort longest first so multi-word aliases removed before short ones
+  aliases.sort((a,b)=>b.length-a.length);
+  for(const a of aliases){
+    s=s.replace(new RegExp('\\b'+a.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','ig'),' ');
+  }
+  return s.replace(/\s+/g,' ').trim();
+}
+
 function parseInput(raw) {
   const trimmed = raw.trim();
   if (!trimmed) return null;
@@ -1283,19 +1565,298 @@ function parseInput(raw) {
     return {command:'deleteQuery',query:q.trim()};
   }
 
+  // ── ACCOUNT DECLARATION: "pbb is savings", "set pbb as savings", "pbb 是 savings" ──
+  // Pure metadata — NO money movement, NO transaction created
+  {
+    const declMatch=
+      lower.match(/^(.+?)\s+is\s+(savings|spending|investment)\s*(?:account)?\s*$/i) ||
+      lower.match(/^set\s+(.+?)\s+as\s+(savings|spending|investment)\s*(?:account)?\s*$/i) ||
+      lower.match(/^(.+?)\s+是\s*(savings|储蓄|存款|spending|investment)\s*(?:账户)?\s*$/i);
+    if(declMatch){
+      const bankStr=declMatch[1].replace(/\bset\b/i,'').trim();
+      const roleRaw=(declMatch[2]||'').toLowerCase();
+      const role=(roleRaw==='储蓄'||roleRaw==='存款')?'savings':roleRaw;
+      const bank=detectBankExact(bankStr)||S.banks.find(b=>b.name.toLowerCase().includes(bankStr)||bankStr.includes(b.name.toLowerCase()));
+      if(bank) return {command:'declareRole', bankId:bank.id, bankName:bank.name, role};
+    }
+  }
+
+  // ── SAVINGS MIGRATION: "transfer all savings from OCBC to PBB" ──
+  // Moves ALL balance AND swaps role — only when "savings" explicitly part of transfer context
+  if(/\b(transfer all savings|move all savings|migrate savings|move savings)\b/i.test(lower)){
+    let fromBank=null, toBank=null;
+    const fromM=lower.match(/\bfrom\s+(.+?)(?:\s+to\b|$)/i);
+    const toM=lower.match(/\bto\s+(.+?)(?:\s*$)/i);
+    if(fromM){ fromBank=detectBankExact(fromM[1].trim())||S.banks.find(b=>b.name.toLowerCase().includes(fromM[1].trim())); }
+    if(toM){ toBank=detectBankExact(toM[1].trim())||S.banks.find(b=>b.name.toLowerCase().includes(toM[1].trim())); }
+    return {command:'savingsMigration', fromBankId:fromBank?fromBank.id:null, toBankId:toBank?toBank.id:null,
+            fromName:fromBank?fromBank.name:null, toName:toBank?toBank.name:null};
+  }
+
+  // ── LOAN REPAYMENT (income): "john loan repay 1000", "loan repayment 1000 to maybank", "还贷 1000" ──
+  // Money a friend pays back for a loan you gave them — counts as income (category inc_loan)
+  if (/\b(loan\s*repay(ment)?|repay\s*loan|loan\s*back|lent\s*back)\b/i.test(lower)
+      || /还贷|借出回收|还款收入|欠款收回/i.test(trimmed)) {
+    // amount
+    let amt=null;
+    const am=lower.match(/(?:rm|\$|s\$|a\$|€)?\s?(\d+(?:\.\d{1,2})?)(k?)/i);
+    if(am){ amt=parseFloat(am[1]); if(/k/i.test(am[2]))amt*=1000; }
+    // which bank received it (if mentioned, e.g. "to maybank" / "into cimb")
+    let bankId=null;
+    const bankMatch=lower.match(/\b(?:to|into|in)\s+([a-z0-9 ]+?)(?:\s|$)/i);
+    if(bankMatch){ const fb=detectBankExact(bankMatch[1].trim())||detectBank(bankMatch[1].trim()); if(fb) bankId=fb.id; }
+    if(!bankId){ for(const b of S.banks){ if(b.aliases.some(a=>lower.includes(a))){ bankId=b.id; break; } } }
+    // who paid (label)
+    let who=trimmed
+      .replace(/\b(loan\s*repay(ment)?|repay\s*loan|loan\s*back|lent\s*back)\b/ig,' ')
+      .replace(/还贷|借出回收|还款收入|欠款收回/ig,' ')
+      .replace(/\b(to|into|in)\s+[a-z0-9 ]+/ig,' ')
+      .replace(/(?:rm|\$|s\$|a\$|€)?\s?\d+(?:\.\d{1,2})?(k)?/ig,' ')
+      .replace(/\s+/g,' ').trim();
+    return {
+      command:null,
+      id:uid(), date:todayStr(), time:timeStr(), type:'income',
+      categoryId:'inc_loan', amount:amt, bankId,
+      description:(who?who+' ':'')+'loan repayment',
+      item:who||'', raw:trimmed,
+      _needsFill:true, _isLoanRepay:true
+    };
+  }
+
+  // ── REIMBURSEMENT vs LOAN REPAYMENT ──
+  // Clearly reimbursement: reimburse / refund / 报销 / 退款
+  // Clearly loan: handled earlier (loan repay / 还贷 ...)
+  // Ambiguous (could be either): pay back / 还 / 还钱 / 还我 → ask the user which one
+  const clearlyReimburse=/\b(reimburse[sd]?|reimbursed me|refund(ed)?)\b/i.test(lower) || /退款|报销/i.test(trimmed);
+  const ambiguousBack=/\b(paid? me back|pays? back|pay back|paid back|pay(s|ed)? back)\b/i.test(lower)
+      || /还我钱|还款给我|还我|还钱|偿还|归还/i.test(trimmed)
+      || /还\s*(我)?\s*(rm|\$|s\$|a\$|€)?\s*\d/i.test(trimmed);
+  if (clearlyReimburse || ambiguousBack) {
+    // extract amount
+    let amt=null;
+    const am=lower.match(/(?:rm|\$|s\$|a\$|€)?\s?(\d+(?:\.\d{1,2})?)(k?)/i);
+    if(am){ amt=parseFloat(am[1]); if(/k/i.test(am[2]))amt*=1000; }
+    // who/what — strip keywords + amount to get a label
+    let who=trimmed
+      .replace(/\b(paid? me back|pays? back|pay back|paid back|reimbursed me|reimburse[sd]?|refunded|refund)\b/ig,' ')
+      .replace(/还我钱|还款给我|还我|还钱|退款|报销|偿还|归还|还/ig,' ')
+      .replace(/(?:rm|\$|s\$|a\$|€)?\s?\d+(?:\.\d{1,2})?(k)?/ig,' ')
+      .replace(/\b(me|back|for|the|from|我)\b/ig,' ')
+      .replace(/\s+/g,' ').trim();
+    // If wording is ambiguous (not a clear "reimburse"/"refund"), let the user choose
+    if(ambiguousBack && !clearlyReimburse){
+      return {command:'reimburseOrLoan', amount:amt, who:who||''};
+    }
+    return {command:'reimburse', amount:amt, who:who||''};
+  }
+
+  // ── TRANSFER IN / OUT to a person (not between own banks) ──
+  // "transfer from Bah RM50" → money IN (+), "transfer to Bah RM50" → money OUT (−)
+  {
+    const tfIn=lower.match(/\b(transfer from|received from|got from|from)\b\s+(.*)/i);
+    const tfOut=lower.match(/\btransfer to\b\s+(.*)/i);
+    const hasTransferWord=/\btransfer\b/i.test(lower)||/\breceived\b/i.test(lower);
+    // count how many of OUR banks are mentioned (if 2+, it's a bank-to-bank transfer, handled elsewhere)
+    let bankHits=0;
+    for(const b of S.banks){ if(b.aliases.some(a=>lower.includes(' '+a)||lower.startsWith(a)||lower.includes(a+' '))){ bankHits++; } }
+
+    if(hasTransferWord && bankHits<2){
+      // amount
+      let amt=null;
+      const am=lower.match(/(?:rm|\$|s\$|a\$|€)?\s?(\d+(?:\.\d{1,2})?)(k?)/i);
+      if(am){ amt=parseFloat(am[1]); if(/k/i.test(am[2]))amt*=1000; }
+      const isOut=/\btransfer to\b/i.test(lower);
+      const isIn=/\btransfer from\b/i.test(lower)||/\breceived from\b/i.test(lower)||(/\btransfer\b/i.test(lower)&&/\bfrom\b/i.test(lower));
+      if(isOut || isIn){
+        // person/source label
+        let who=trimmed
+          .replace(/\b(transfer to|transfer from|received from|got from|transfer|received)\b/ig,' ')
+          .replace(/(?:rm|\$|s\$|a\$|€)?\s?\d+(?:\.\d{1,2})?(k)?/ig,' ')
+          .replace(/\b(from|to|the)\b/ig,' ')
+          .replace(/\s+/g,' ').trim();
+        // bank if one of our banks mentioned
+        let bankId=null;
+        for(const b of S.banks){ if(b.aliases.some(a=>lower.includes(a))){ bankId=b.id; break; } }
+        return {
+          command:null,
+          id:uid(), date:todayStr(), time:timeStr(),
+          type: isOut?'expense':'income',
+          categoryId: isOut?'transfer_out':'transfer_in',
+          amount: amt, bankId,
+          description: (isOut?'Transfer to ':'Transfer from ')+(who||'?'),
+          item: who||'', raw:trimmed,
+          _needsFill:true, _isPersonTransfer:true, _transferDir:isOut?'out':'in', _who:who||''
+        };
+      }
+    }
+  }
+
+  // ── PAY: "pay spaylater 170 from hlb" (installment/cc) OR "pay netflix 40" (fixed expense) ──
+  if (/^pay\b/i.test(lower)) {
+    let body=trimmed.replace(/^pay\s+/i,'').trim();
+    // find "from <bank>"
+    let fromBankId=null;
+    const fromMatch=body.match(/\bfrom\s+(.+)$/i);
+    let providerPart=body;
+    if(fromMatch){
+      const bankStr=fromMatch[1].trim();
+      const fb=detectBankExact(bankStr)||detectBank(bankStr);
+      if(fb) fromBankId=fb.id;
+      providerPart=body.slice(0,fromMatch.index).trim();
+    }
+    // find amount in providerPart
+    let payAmt=null;
+    const ptoks=providerPart.split(/\s+/).filter(Boolean);
+    const nameToks=[];
+    for(const tk of ptoks){
+      const a=extractAmount(tk);
+      if(a!==null && payAmt===null){ payAmt=a; continue; }
+      nameToks.push(tk);
+    }
+    const nameStr=nameToks.join(' ').toLowerCase();
+    // 1. Try installment / credit-card provider
+    const provObj=detectInstallmentProvider(nameStr);
+    if(provObj){
+      return {command:'repayInstallment', providerId:provObj.id, providerQuery:nameStr, amount:payAmt, fromBankId};
+    }
+    // 2. Not a cc/installment provider — is it a FIXED EXPENSE? (e.g. "pay netflix 40")
+    const fx=findFixedFuzzy(nameStr);
+    if(fx && (fx.item || (fx.candidates&&fx.candidates.length))){
+      const q = fx.item ? fx.item.name.toLowerCase() : nameStr;
+      return {command:'payFixed', query:q, amount:payAmt, date:todayStr(), fromBankId};
+    }
+    // 3. Does the user even have any cc/installment? If yes, treat as repayment (will ask which).
+    const hasProviders=S.banks.some(b=>b.type==='creditcard'||b.type==='instalment')
+      || (S.installments&&S.installments.length>0);
+    if(hasProviders){
+      return {command:'repayInstallment', providerId:null, providerQuery:nameStr, amount:payAmt, fromBankId};
+    }
+    // 4. No providers, no matching fixed expense → record as a normal expense (ask category/bank)
+    const cat=nameStr?detectCategory(nameStr):null;
+    return {
+      command:null,
+      id:uid(), date:todayStr(), time:timeStr(), type:'expense',
+      categoryId:cat?cat.id:null, amount:payAmt,
+      bankId:fromBankId||null,
+      description:nameStr||'', item:nameStr||'', raw:trimmed,
+      _needsFill:true
+    };
+  }
+
+  // ── INSTALLMENT CREATION: "spaylater - iphone 1800/12" or "uob cc - iphone 1800" ──
+  {
+    const instProvider=detectInstallmentProvider(lower);
+    // Also detect "<item> <amount>/<months>" pattern WITHOUT a provider (e.g. "iphone 1888/12")
+    // Require amount ≥ 3 digits (or decimal) so dates like "20/6" aren't mistaken for installments
+    const hasAmtSlashMonths=/\b\d{3,}(?:\.\d{1,2})?\/\d{1,2}\b/.test(lower) || /\b\d+\.\d{1,2}\/\d{1,2}\b/.test(lower);
+    if(instProvider || hasAmtSlashMonths){
+      // Parse: [provider] [-] <item> <amount>[/months]
+      let body = instProvider ? stripProviderPhrase(trimmed, instProvider) : trimmed;
+      body=body.replace(/^\s*[-–·:]\s*/,'').trim();
+      // find amount + optional /months  (1800/12 or 1800)
+      let total=null, months=null;
+      const itemToks=[];
+      const bTokens=body.replace(/\s*[-–·]\s*/g,' ').split(/\s+/).filter(Boolean);
+      for(const tk of bTokens){
+        // amount/months pattern
+        const am=tk.match(/^(?:rm|\$|s\$|a\$)?(\d+(?:\.\d{1,2})?)(k?)\/(\d{1,2})$/i);
+        if(am && total===null){
+          total=parseFloat(am[1]); if(/k/i.test(am[2]))total*=1000;
+          months=parseInt(am[3]); continue;
+        }
+        const a=extractAmount(tk);
+        if(a!==null && total===null){ total=a; continue; }
+        itemToks.push(tk);
+      }
+      const itemName=itemToks.join(' ').trim();
+      // detect category from item name ONLY (not full string, to avoid e.g. "spa" in "spaylater")
+      const cat=itemName?detectCategory(itemName):null;
+      return {
+        command:null,
+        id:uid(), date:todayStr(), time:timeStr(), type:'expense',
+        categoryId: cat?cat.id:null,
+        amount: total,
+        bankId: instProvider?instProvider.id:null,
+        description: itemName||'',
+        item:'',
+        raw: trimmed,
+        _needsFill:true,
+        _isInstallment:true,
+        _instMonths: months, // null → will ask
+        _instProviderId: instProvider?instProvider.id:null, // null → will ask which provider
+        _instProviderName: instProvider?instProvider.name:null
+      };
+    }
+  }
+
+  // ── SAVINGS: declaration ("savings CIMB" → set role + ask initial) OR transfer ("savings HLB to OCBC 70") ──
+  // Detect "savings"/"saving" or Chinese 存款/储蓄/存钱 anywhere in the input
+  if (/\bsavings?\b/i.test(lower) || /存款|储蓄|存钱|儲蓄|存進|存入/i.test(trimmed)) {
+    // extract date if present (e.g. "7/6 savings ...")
+    let sDate=todayStr();
+    let working=trimmed;
+    const dRes=extractDate(trimmed);
+    if(dRes){ sDate=dRes.date; working=dRes.rest; }
+    const hasFromTo=/\b(from|to)\b/i.test(working);
+    // strip the savings keyword (EN + CN) and from/to/separators
+    let body=working.replace(/\bsavings?\b/i,' ').replace(/存款|储蓄|存钱|儲蓄|存進|存入/g,' ').replace(/\bfrom\b/i,' ').replace(/\bto\b/i,' ').replace(/\s*[-–·:]\s*/g,' ').trim();
+    const bTokens=body.split(/\s+/).filter(Boolean);
+    // find amount
+    let sAmt=null;
+    for(const tk of bTokens){ const a=extractAmount(tk); if(a!==null){sAmt=a;break;} }
+    // find banks in order
+    const sBanks=[];
+    for(const tk of bTokens){
+      if(extractAmount(tk)!==null) continue;
+      const b=detectBankExact(tk);
+      if(b && !sBanks.find(x=>x.id===b.id)) sBanks.push(b);
+    }
+    // DECLARATION: exactly one bank, no from/to, no amount → "savings CIMB"
+    // → mark that bank as a savings account and ask for the initial savings amount
+    if(sBanks.length===1 && !hasFromTo && sAmt==null){
+      return {command:'savingsDeclare', bankId:sBanks[0].id, bankName:sBanks[0].name};
+    }
+    // TRANSFER: needs from-bank, to-bank, amount (fill flow asks for missing)
+    return {
+      command:null, // not a one-shot command — use fill flow
+      id:uid(), date:sDate, time:timeStr(), type:'savings',
+      categoryId:'transfer',
+      amount:sAmt,
+      bankId:sBanks[0]?sBanks[0].id:null,
+      toBankId:sBanks[1]?sBanks[1].id:null,
+      description:'Savings',
+      item:'',
+      raw:trimmed,
+      _needsFill:true,
+      _isSavings:true
+    };
+  }
+
   // Fixed-expense PAID command, e.g. "22/6 netflix paid 47.00" or "netflix paid 47"
   if (lower.includes('paid')) {
+    let payDate=todayStr();
+    let working=trimmed;
+    // date at start?
     const dateRes=extractDate(trimmed);
-    const payDate=dateRes?dateRes.date:todayStr();
-    const afterDate=dateRes?dateRes.rest:trimmed;
+    if(dateRes){ payDate=dateRes.date; working=dateRes.rest; }
     // remove the word 'paid', collect name + amount
-    const cleaned=afterDate.replace(/\bpaid\b/i,' ').replace(/\s*[-–·]\s*/g,' ').trim();
+    const cleaned=working.replace(/\bpaid\b/i,' ').replace(/\s*[-–·]\s*/g,' ').trim();
     const tokens=cleaned.split(/\s+/).filter(Boolean);
-    let payAmt=null,nameTokens=[];
-    for (const tk of tokens) {
+    let payAmt=null,nameTokens=[],foundTrailingDate=false;
+    for (let i=0;i<tokens.length;i++) {
+      const tk=tokens[i];
       const a=extractAmount(tk);
-      if (a!==null && payAmt===null) payAmt=a;
-      else nameTokens.push(tk);
+      if (a!==null && payAmt===null) { payAmt=a; continue; }
+      // trailing date token like 22/6 or 22/6/2026
+      const dm=tk.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
+      if(dm && !dateRes){
+        const day=parseInt(dm[1]),mon=parseInt(dm[2]),yr=dm[3]?(parseInt(dm[3])<100?parseInt(dm[3])+2000:parseInt(dm[3])):new Date().getFullYear();
+        payDate=dateToStr(new Date(yr,mon-1,day)); foundTrailingDate=true; continue;
+      }
+      // bare month name
+      const mi=monthIndexFromName(tk);
+      if(mi>=0 && !dateRes && !foundTrailingDate){ payDate=dateToStr(new Date(new Date().getFullYear(),mi,1)); continue; }
+      nameTokens.push(tk);
     }
     const nameQuery=nameTokens.join(' ').toLowerCase();
     if (nameQuery) {
@@ -1303,88 +1864,159 @@ function parseInput(raw) {
     }
   }
 
-  // Transfer detection (before date extraction)
-  if (isTransferInput(lower)) {
-    const dateRes = extractDate(trimmed);
-    const date = dateRes?dateRes.date:todayStr();
-    return parseTransfer(trimmed, date);
+  // Auto-detect a FIXED/SUBSCRIPTION by name match (no "paid" keyword needed)
+  // e.g. "iCloud+ 9.90 june" or "Disney+" → recognized as fixed payment
+  {
+    const dateRes=extractDate(trimmed);
+    let payDate=dateRes?dateRes.date:todayStr();
+    const afterDate=dateRes?dateRes.rest:trimmed;
+    // strip separators, collect tokens
+    const cleaned=afterDate.replace(/\s*[-–·]\s*/g,' ').trim();
+    const tokens=cleaned.split(/\s+/).filter(Boolean);
+    let payAmt=null, nameTokens=[], bankTok=null, bareMonth=null;
+    for (const tk of tokens) {
+      const a=extractAmount(tk);
+      if (a!==null && payAmt===null) { payAmt=a; continue; }
+      if (detectBankExact(tk)) { bankTok=tk; continue; }
+      // bare month name (e.g. "june") → that month, day 1
+      const mi=monthIndexFromName(tk);
+      if (mi>=0 && !dateRes) { bareMonth=mi; continue; }
+      nameTokens.push(tk);
+    }
+    if (bareMonth!==null) {
+      const d=new Date(new Date().getFullYear(),bareMonth,1);
+      payDate=dateToStr(d);
+    }
+    const nameQuery=nameTokens.join(' ').toLowerCase().trim();
+    // Match against existing fixed expense names
+    if (nameQuery && S.fixedExpenses && S.fixedExpenses.length) {
+      const match=S.fixedExpenses.find(f=>{
+        const fn=f.name.toLowerCase();
+        return fn===nameQuery || fn.includes(nameQuery) || nameQuery.includes(fn);
+      });
+      if (match) {
+        return {command:'payFixed', query:match.name.toLowerCase(), amount:payAmt, date:payDate};
+      }
+    }
   }
 
-  // Date
+  // ── Date extraction ──
   let date=todayStr(), rest=trimmed;
   const dr=extractDate(trimmed);
   if (dr) { date=dr.date; rest=dr.rest; }
 
-  // Split by - · – (with spaces)
-  const parts = rest.split(/\s*[-–·]\s*/).map(p=>p.trim()).filter(Boolean);
+  // ── Tokenize: split by separators AND spaces into clean tokens ──
+  // Replace separators with spaces, then split
+  let work=rest.replace(/[-–·,]/g,' ');
+  let tokens=work.split(/\s+/).filter(Boolean);
 
-  // Find amount among parts
-  let amount=null, amtIdx=-1;
-  for (let i=0;i<parts.length;i++) {
-    const a=extractAmount(parts[i]);
-    if (a!==null) { amount=a; amtIdx=i; break; }
+  // ── Find amount anywhere (rm50, rm 50, 50, 50.00, 5k) ──
+  let amount=null;
+  const usedIdx=new Set();
+  // First pass: token like "rm50" / "50" / "5k"
+  for (let i=0;i<tokens.length;i++){
+    const a=extractAmount(tokens[i]);
+    if(a!==null){ amount=a; usedIdx.add(i); break; }
   }
-
-  // Find bank among parts
-  let bank=null, bankIdx=-1;
-  for (let i=0;i<parts.length;i++) {
-    if (i===amtIdx) continue;
-    const b=detectBank(parts[i]);
-    if (b) { bank=b; bankIdx=i; break; }
+  // Second pass: "rm" followed by number in next token (rm 50)
+  if(amount===null){
+    for(let i=0;i<tokens.length-1;i++){
+      if(/^rm$/i.test(tokens[i])){
+        const a=extractAmount(tokens[i+1]);
+        if(a!==null){ amount=a; usedIdx.add(i); usedIdx.add(i+1); break; }
+      }
+    }
   }
-
-  // ── Fallback: space-tokenized parsing when no separators found ──
-  // e.g. "lunch nasilemak 10 tng" (no dashes/dots)
-  if (amtIdx===-1 && parts.length===1) {
-    const tokens=parts[0].split(/\s+/).filter(Boolean);
-    let tAmtIdx=-1, tBankIdx=-1;
-    for (let i=0;i<tokens.length;i++) {
-      const a=extractAmount(tokens[i]);
-      if (a!==null){amount=a;tAmtIdx=i;break;}
-    }
-    for (let i=0;i<tokens.length;i++) {
-      if (i===tAmtIdx)continue;
-      // Use exact word match only to avoid false positives
-      const b=detectBankExact(tokens[i]);
-      if (b){bank=b;tBankIdx=i;break;}
-    }
-    if (tAmtIdx!==-1) {
-      // Rebuild parts from remaining description tokens
-      const descStr=tokens.filter((_,i)=>i!==tAmtIdx&&i!==tBankIdx).join(' ');
-      parts.length=0;
-      if (descStr) parts.push(descStr);
-      amtIdx=parts.length; bankIdx=parts.length+1; // out-of-range = filtered out
+  // Third pass: any token that's a bare number embedded (e.g. "rm50.5")
+  if(amount===null){
+    for (let i=0;i<tokens.length;i++){
+      const m=tokens[i].match(/(\d+(?:\.\d{1,2})?)(k?)/i);
+      if(m && !detectBankExact(tokens[i])){
+        let a=parseFloat(m[1]); if(/k/i.test(m[2]))a*=1000;
+        amount=a; usedIdx.add(i); break;
+      }
     }
   }
 
-  // Remaining = description
-  const descParts=parts.filter((_,i)=>i!==amtIdx&&i!==bankIdx);
-  const descText=descParts.join(' ');
-  const lowerDesc=descText.toLowerCase();
+  // ── Find bank(s) anywhere (exact token match) ──
+  const foundBankIdx=[];
+  for(let i=0;i<tokens.length;i++){
+    if(usedIdx.has(i))continue;
+    const b=detectBankExact(tokens[i]);
+    if(b){ foundBankIdx.push({idx:i,bank:b}); }
+  }
+  // Fallback: bank alias glued inside a token (e.g. Chinese 用hlb)
+  if(foundBankIdx.length===0){
+    for(let i=0;i<tokens.length;i++){
+      if(usedIdx.has(i))continue;
+      const tk=tokens[i].toLowerCase();
+      let matched=null;
+      for(const bank of S.banks){
+        for(const alias of bank.aliases){
+          if(alias.length>=2 && tk.includes(alias)){ matched=bank; break; }
+        }
+        if(matched)break;
+      }
+      if(matched){
+        foundBankIdx.push({idx:i,bank:matched});
+        // strip the alias from the token so it's not part of description
+        tokens[i]=tokens[i].replace(new RegExp(matched.aliases.find(a=>tk.includes(a)),'i'),'').trim();
+        break;
+      }
+    }
+  }
 
-  // Type detection
+  // ── Transfer detection: "X to Y" or topup/transfer keyword + 2 banks ──
+  const transferKw=['to','topup','top up','transfer','pindah','reload','转','转账','过账'];
+  const hasTransferKw=transferKw.some(k=>{
+    if(k==='to') return /\bto\b/i.test(rest);
+    return rest.toLowerCase().includes(k);
+  });
+  if(foundBankIdx.length>=2 && hasTransferKw){
+    const fromBank=foundBankIdx[0].bank, toBank=foundBankIdx[1].bank;
+    return {
+      id:uid(), date, time:timeStr(), type:'transfer',
+      categoryId:'transfer', amount,
+      bankId:fromBank.id, toBankId:toBank.id,
+      description:'Transfer',
+      item:`${fromBank.name} → ${toBank.name}`,
+      raw:trimmed,
+      _needsFill:true, _isTransfer:true,
+      _fromBankName:fromBank.name, _toBankName:toBank.name
+    };
+  }
+
+  // Single bank = the paying/receiving account
+  let bank=foundBankIdx.length?foundBankIdx[0].bank:null;
+  if(bank) usedIdx.add(foundBankIdx[0].idx);
+
+  // ── Remaining tokens = description (strip filler words) ──
+  const FILLER=new Set(['i','eat','ate','use','used','using','to','pay','paid','with','for','spent','spend','on','at','my','a','the','an','of','buy','bought','got','get','beli','makan','guna','pakai','bayar','untuk','dekat','kat','di','花','买','吃','用','付','在','了','给','是','this','that','it','just','some','was','were','am','is']);
+  const descTokens=tokens.filter((_,i)=>!usedIdx.has(i)).filter(t=>!FILLER.has(t.toLowerCase()));
+  const descText=descTokens.join(' ');
+
+  // ── Type detection ──
   let type='expense';
-  if (isIncomeInput(lower, descParts)) type='income';
+  if (isIncomeInput(lower, descTokens)) type='income';
 
-  // Category detection
+  // ── Category detection ──
   let cat;
   if (type==='income') {
-    cat = detectIncomeCategory(descParts.join(' ')) || detectIncomeCategory(lower);
+    cat = detectIncomeCategory(descText) || detectIncomeCategory(lower);
   } else {
-    cat = detectCategory(descParts.join(' '));
+    cat = detectCategory(descText) || detectCategory(lower);
   }
 
-  // Build a transaction draft; missing fields will be filled via step-by-step prompts
   const isFood = cat && cat.id==='food';
   return {
     id:uid(), date, time:timeStr(), type,
     categoryId: cat?cat.id:null,
     amount,
     bankId: bank?bank.id:null,
-    description: descParts[0]||'',
-    item: descParts.slice(1).join(' · '),
+    description: descTokens[0]||'',
+    item: descTokens.slice(1).join(' '),
     raw: trimmed,
-    _needsFill:true, // flag → run fill-in checker
+    _needsFill:true,
     _isFood:isFood
   };
 }
@@ -1396,9 +2028,9 @@ function parseInput(raw) {
 function updateTodayAmt() {
   const td=todayStr();
   const sum=S.transactions
-    .filter(t=>t.date===td&&t.type==='expense')
-    .reduce((a,t)=>a+(t.amount||0),0);
-  document.getElementById('today-amt').textContent='RM '+sum.toFixed(2);
+    .filter(t=>t.date===td && t.type==='expense' && t.categoryId!=='transfer_out')
+    .reduce((a,t)=>a+((t.amount||0)-(t.reimbursedAmount||0)),0);
+  document.getElementById('today-amt').textContent=curSym()+' '+sum.toFixed(2);
 }
 
 function appendUserBubble(text) {
@@ -1421,18 +2053,19 @@ function appendResultBubble(tx) {
   bubble.className='bubble';
   bubble.dataset.txId=tx.id;
 
-  const amtClass=tx.type==='income'?'income':tx.type==='transfer'?'transfer':'';
-  const prefix=tx.type==='income'?'+':'−';
+  const amtClass=tx.type==='income'?'income':(tx.type==='transfer'||tx.type==='savings')?'transfer':'';
+  const prefix=tx.type==='income'?'+':(tx.type==='transfer'||tx.type==='savings')?'':'−';
   const bankStr=bank?bank.emoji+' '+bank.name:'';
   const itemStr=[tx.description,tx.item].filter(Boolean).join(' · ');
+  const catLabel=tx.type==='savings'?'💰 Savings Transfer':(tx.type==='transfer'?'🔄 Transfer':(cat?cat.emoji+' '+cat.name:'🗂️ Other'));
 
   bubble.innerHTML=`
-    <div class="bubble-category">${cat?cat.emoji+' '+cat.name:'🗂️ Other'}</div>
+    <div class="bubble-category">${catLabel}</div>
     <div class="bubble-main">
       <div class="bubble-desc">${itemStr||tx.raw}</div>
-      <div class="bubble-amount ${amtClass}">${prefix}RM ${(tx.amount||0).toFixed(2)}</div>
+      <div class="bubble-amount ${amtClass}">${prefix}${curSym()} ${(tx.amount||0).toFixed(2)}</div>
     </div>
-    <div class="bubble-meta">${tx.date===todayStr()?'Today':fmtDate(tx.date)} · ${tx.time}${bankStr?' · '+bankStr:''}</div>
+    <div class="bubble-meta">${tx.date===todayStr()?'Today':fmtDate(tx.date)} · ${tx.time}${tx.type==='savings'||tx.type==='transfer'?'':(bankStr?' · '+bankStr:'')}</div>
   `;
   wrap.appendChild(bubble);
   msgs.appendChild(wrap);
@@ -1455,7 +2088,7 @@ function appendQuestionBubble(parsed) {
   
   const catList = parsed.incomeMode
     ? S.categories.filter(c=>c.isIncome)
-    : S.categories.filter(c=>c.id!=='transfer'&&!c.isIncome);
+    : S.categories.filter(c=>!INTERNAL_CATS.has(c.id)&&!c.isIncome);
   const opts=catList.map(c=>
     `<div class="q-opt" data-cat="${c.id}">${c.emoji} ${c.name}</div>`
   ).join('');
@@ -1538,42 +2171,646 @@ function handleCommand(cmd) {
     });
   } else if (cmd.command==='payFixed') {
     handlePayFixed(cmd);
+  } else if (cmd.command==='savingsTransfer') {
+    handleSavingsTransfer(cmd);
+  } else if (cmd.command==='repayInstallment') {
+    handleRepayInstallment(cmd);
+  } else if (cmd.command==='reimburse') {
+    handleReimburse(cmd);
+  } else if (cmd.command==='reimburseOrLoan') {
+    handleReimburseOrLoan(cmd);
+  } else if (cmd.command==='declareRole') {
+    handleDeclareRole(cmd);
+  } else if (cmd.command==='savingsMigration') {
+    handleSavingsMigration(cmd);
+  } else if (cmd.command==='savingsDeclare') {
+    handleSavingsDeclare(cmd);
   }
 }
 
-function handlePayFixed(cmd) {
-  // Find matching fixed expense by name
-  const item=S.fixedExpenses.find(f=>f.name.toLowerCase().includes(cmd.query)||cmd.query.includes(f.name.toLowerCase()));
-  if (!item) {
-    appendSystemBubble(`No fixed expense found matching "${cmd.query}".`);
+// ── SAVINGS DECLARATION: "savings CIMB" → mark as savings + ask initial amount ──
+function handleSavingsDeclare(cmd){
+  const bank=S.banks.find(b=>b.id===cmd.bankId);
+  if(!bank){ appendSystemBubble('Account not found.'); return; }
+  // Mark as savings role
+  bank.role='savings'; bank.isSavingsBank=true; delete bank.savingsExcluded;
+  save();
+  // Ask for the initial savings amount (can be 0)
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  bubble.innerHTML=`<div class="bubble-question">💰 ${bank.emoji} ${bank.name} is now a savings account. What's your initial savings amount? (can be 0)
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <input class="field q-typein" id="sav-init-input" type="number" inputmode="decimal" placeholder="0.00" step="0.01" style="flex:1;font-size:13px">
+      <button class="btn btn-primary" id="sav-init-ok" style="padding:8px 16px">OK</button>
+    </div></div>`;
+  const inp=bubble.querySelector('#sav-init-input');
+  const submit=()=>{
+    let v=parseFloat(inp.value);
+    if(isNaN(v)||v<0) v=0;
+    if(!S.savingsStarting) S.savingsStarting={};
+    S.savingsStarting[cmd.bankId]=v;
+    // Set the starting date to today so prior transactions don't distort the balance
+    if(!S.savingsStartDate) S.savingsStartDate={};
+    S.savingsStartDate[cmd.bankId]=todayStr();
+    save();
+    bubble.remove();
+    if(document.querySelector('#tab-savings.active')) renderSavings();
+    if(document.querySelector('#tab-stats.active')) renderStats();
+    const b2=document.createElement('div'); b2.className='bubble';
+    b2.innerHTML=`<div class="bubble-category" style="color:var(--accent)">💰 Savings Account Set</div>
+      <div class="bubble-main"><div class="bubble-desc">${bank.emoji} ${bank.name}</div><div class="bubble-amount">${curSym()} ${v.toFixed(2)}</div></div>
+      <div class="bubble-meta">Initial savings balance · add more anytime</div>`;
+    msgs.appendChild(b2); msgs.scrollTop=msgs.scrollHeight;
+  };
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter') submit(); });
+  bubble.querySelector('#sav-init-ok').addEventListener('click',submit);
+  msgs.appendChild(bubble);
+  setTimeout(()=>inp.focus(),50);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+// ── ACCOUNT DECLARATION: "pbb is savings" → metadata only, no money movement ──
+function handleDeclareRole(cmd){
+  const bank=S.banks.find(b=>b.id===cmd.bankId);
+  if(!bank){ appendSystemBubble(`Account not found.`); return; }
+  const prev=bank.role||null;
+  bank.role=cmd.role;
+  if(cmd.role==='savings'){ bank.isSavingsBank=true; delete bank.savingsExcluded; }
+  else { delete bank.isSavingsBank; bank.savingsExcluded=true; }
+  save();
+  if(document.querySelector('#tab-savings.active')) renderSavings();
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  bubble.innerHTML=`
+    <div class="bubble-category" style="color:var(--accent)">🏷️ Account Role Updated</div>
+    <div class="bubble-main"><div class="bubble-desc">${bank.emoji} ${bank.name}</div></div>
+    <div class="bubble-meta">${prev?`${prev} → `:''}${cmd.role}${cmd.role==='savings'?' 💰':''} · No money moved</div>`;
+  msgs.appendChild(bubble); msgs.scrollTop=msgs.scrollHeight;
+}
+
+// ── SAVINGS MIGRATION: "transfer all savings from OCBC to PBB" → money + role swap ──
+function handleSavingsMigration(cmd){
+  if(!cmd.fromBankId||!cmd.toBankId){
+    appendSystemBubble(`Specify both accounts, e.g. "transfer all savings from HLB to OCBC"`);
     return;
   }
-  const amount=cmd.amount!=null?cmd.amount:(parseFloat(item.amount)||0);
-  if (!amount||amount<=0) {
-    appendSystemBubble(`Please specify an amount, e.g. "${item.name} paid 47".`);
+  const fromBank=S.banks.find(b=>b.id===cmd.fromBankId);
+  const toBank=S.banks.find(b=>b.id===cmd.toBankId);
+  if(!fromBank||!toBank){ appendSystemBubble(`One or both accounts not found.`); return; }
+  const balance=computeBalance(cmd.fromBankId);
+  if(balance<=0.005){
+    appendSystemBubble(`${fromBank.emoji} ${fromBank.name} has no balance to migrate (${curSym()} ${balance.toFixed(2)}).`);
+    return;
+  }
+  // Move ALL balance
+  S.transactions.unshift({
+    id:uid(), date:todayStr(), time:timeStr(), type:'savings',
+    categoryId:'transfer', amount:Math.round(balance*100)/100,
+    bankId:cmd.fromBankId, toBankId:cmd.toBankId,
+    description:'Savings Migration',
+    item:`${fromBank.name} → ${toBank.name}`,
+    raw:`transfer all savings from ${fromBank.name} to ${toBank.name}`
+  });
+  // Swap roles: destination becomes savings, source loses it
+  toBank.role='savings'; toBank.isSavingsBank=true; delete toBank.savingsExcluded;
+  if(fromBank.role==='savings'||fromBank.isSavingsBank){ fromBank.role=null; fromBank.savingsExcluded=true; delete fromBank.isSavingsBank; }
+  save();
+  if(document.querySelector('#tab-records.active')) renderRecords();
+  if(document.querySelector('#tab-savings.active')) renderSavings();
+  if(document.querySelector('#tab-stats.active')) renderStats();
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  bubble.innerHTML=`
+    <div class="bubble-category" style="color:var(--success)">💰 Savings Migration</div>
+    <div class="bubble-main">
+      <div class="bubble-desc">${fromBank.emoji} ${fromBank.name} → ${toBank.emoji} ${toBank.name}</div>
+      <div class="bubble-amount income">+${curSym()} ${balance.toFixed(2)}</div>
+    </div>
+    <div class="bubble-meta">Full balance moved · ${toBank.name} is now your savings account</div>`;
+  msgs.appendChild(bubble); msgs.scrollTop=msgs.scrollHeight;
+}
+
+function handleReimburseOrLoan(cmd){
+  // Ambiguous wording — ask the user whether this is a reimbursement or a loan repayment
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  const whoLabel=cmd.who?` from ${cmd.who}`:'';
+  bubble.innerHTML=`<div class="bubble-question">Is this ${curSym()} ${(cmd.amount||0).toFixed(2)}${whoLabel} a reimbursement or a loan repayment?
+    <div class="q-opts" style="flex-direction:column;align-items:stretch">
+      <div class="q-opt" id="rol-reimb" style="margin-bottom:4px">💳 Reimbursement <span style="font-size:10px;color:var(--text-dim)">— they paid back what you covered (not income)</span></div>
+      <div class="q-opt" id="rol-loan">🤝 Loan Repayment <span style="font-size:10px;color:var(--text-dim)">— returning money you lent (counts as income)</span></div>
+    </div></div>`;
+  bubble.querySelector('#rol-reimb').addEventListener('click',()=>{
+    bubble.remove();
+    handleReimburse({command:'reimburse', amount:cmd.amount, who:cmd.who});
+  });
+  bubble.querySelector('#rol-loan').addEventListener('click',()=>{
+    bubble.remove();
+    // build a loan-repayment income tx and run the fill flow (asks which bank received it)
+    const tx={
+      id:uid(), date:todayStr(), time:timeStr(), type:'income',
+      categoryId:'inc_loan', amount:cmd.amount, bankId:null,
+      description:(cmd.who?cmd.who+' ':'')+'loan repayment',
+      item:cmd.who||'', raw:`loan repayment ${cmd.amount||''}`,
+      _needsFill:true, _isLoanRepay:true
+    };
+    processPendingTx(tx);
+  });
+  msgs.appendChild(bubble);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function handleReimburse(cmd){
+  // Need an amount
+  if(cmd.amount==null||cmd.amount<=0){
+    appendSystemBubble('How much was reimbursed? Try: "Bah paid me back RM23".');
+    return;
+  }
+  // Show recent expenses (last 60 days, not already fully reimbursed) to link to
+  const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-60);
+  const cutoffStr=cutoff.toISOString().slice(0,10);
+  const candidates=S.transactions
+    .filter(t=>t.type==='expense' && t.date>=cutoffStr && !INTERNAL_CATS.has(t.categoryId))
+    .slice(0,40);
+  if(candidates.length===0){
+    appendSystemBubble('No recent expenses found to link this reimbursement to.');
+    return;
+  }
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  const rows=candidates.map(t=>{
+    const cat=catById(t.categoryId);
+    const already=(t.reimbursedAmount||0);
+    const net=(t.amount||0)-already;
+    return `<div class="q-opt reimb-opt" data-id="${t.id}" style="display:block;text-align:left;padding:7px 11px;margin-bottom:4px">
+      <div style="display:flex;justify-content:space-between;gap:8px">
+        <span>${cat?cat.emoji:''} ${t.description||t.raw||'(no desc)'}</span>
+        <span style="font-family:var(--mono);color:var(--danger)">${curSym()} ${(t.amount||0).toFixed(2)}</span>
+      </div>
+      <div style="font-size:10px;color:var(--text-dim);margin-top:2px">${fmtDate(t.date)}${already>0?` · already reimbursed ${curSym()} ${already.toFixed(2)}`:''}</div>
+    </div>`;
+  }).join('');
+  bubble.innerHTML=`<div class="bubble-question">Which expense is the ${curSym()} ${cmd.amount.toFixed(2)} reimbursement for?${cmd.who?` (from ${cmd.who})`:''}
+    <div class="q-opts" style="flex-direction:column;align-items:stretch;max-height:50vh;overflow-y:auto">${rows}</div>
+    <div class="q-opts" style="margin-top:6px"><div class="q-opt" id="reimb-standalone">None — just record as income</div></div></div>`;
+  bubble.querySelectorAll('.reimb-opt').forEach(opt=>{
+    opt.addEventListener('click',()=>{
+      linkReimbursement(opt.dataset.id, cmd.amount, cmd.who);
+      bubble.remove();
+    });
+  });
+  bubble.querySelector('#reimb-standalone').addEventListener('click',()=>{
+    // record as plain income with reimbursement category
+    recordStandaloneReimbursement(cmd.amount, cmd.who);
+    bubble.remove();
+  });
+  msgs.appendChild(bubble);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function linkReimbursement(originalTxId, amount, who){
+  const orig=S.transactions.find(t=>t.id===originalTxId);
+  if(!orig){ appendSystemBubble('Original expense not found.'); return; }
+  // Track reimbursed amount on the original
+  orig.reimbursedAmount=Math.round(((orig.reimbursedAmount||0)+amount)*100)/100;
+  // Create the reimbursement income transaction, linked to original
+  const reTx={
+    id:uid(), date:todayStr(), time:timeStr(), type:'income',
+    categoryId:'reimbursement', amount,
+    bankId:orig.bankId||null,
+    description:(who?who+' ':'')+'reimbursement',
+    item:`for: ${orig.description||orig.raw||''}`,
+    raw:`reimbursement ${amount}`,
+    linkedTransactionId:originalTxId
+  };
+  S.transactions.unshift(reTx);
+  save();
+  updateTodayAmt();
+  if (document.querySelector('#tab-records.active')) renderRecords();
+  if (document.querySelector('#tab-savings.active')) renderSavings();
+  if (document.querySelector('#tab-stats.active')) renderStats();
+  // Confirmation
+  const cat=catById(orig.categoryId);
+  const net=(orig.amount||0)-(orig.reimbursedAmount||0);
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  bubble.innerHTML=`
+    <div class="bubble-category" style="color:var(--success)">💳 Reimbursement Linked</div>
+    <div class="bubble-main">
+      <div class="bubble-desc">${cat?cat.emoji:''} ${orig.description||orig.raw||''}</div>
+      <div class="bubble-amount income">+${curSym()} ${amount.toFixed(2)}</div>
+    </div>
+    <div class="bubble-meta">Original ${curSym()} ${(orig.amount||0).toFixed(2)} − reimbursed ${curSym()} ${(orig.reimbursedAmount||0).toFixed(2)} = net ${curSym()} ${net.toFixed(2)}</div>
+  `;
+  msgs.appendChild(bubble);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function recordStandaloneReimbursement(amount, who){
+  const tx={
+    id:uid(), date:todayStr(), time:timeStr(), type:'income',
+    categoryId:'reimbursement', amount, bankId:null,
+    description:(who?who+' ':'')+'reimbursement', item:'', raw:`reimbursement ${amount}`
+  };
+  // ask which bank received it via pending flow
+  tx._needsFill=true; tx._isPersonTransfer=true; tx._transferDir='in';
+  processPendingTx(tx);
+}
+
+function handleRepayInstallment(cmd) {
+  // Resolve provider — try several strategies
+  let providerId=cmd.providerId;
+  if(!providerId && cmd.providerQuery){
+    providerId=resolveRepayProvider(cmd.providerQuery);
+  }
+  if(!providerId){
+    // Couldn't resolve — show a picker of providers that HAVE active installments/balances
+    askRepayProvider(cmd);
+    return;
+  }
+  // Active installments under this provider
+  const active=(S.installments||[]).filter(p=>p.providerId===providerId && p.remainingAmount>0.005);
+  if(active.length===0){
+    const pb=bankById(providerId);
+    appendSystemBubble(`No active installments under ${pb?pb.name:'that provider'}.`);
+    return;
+  }
+  const provName=active[0].providerName||(bankById(providerId)||{}).name||'Installment';
+  // Default suggested amount = sum of this-month monthly dues
+  const monthDue=active.reduce((a,p)=>a+Math.min(p.monthlyAmount,p.remainingAmount),0);
+
+  // Missing amount → ask (suggest month due)
+  if(cmd.amount==null||cmd.amount<=0){
+    askRepayAmount(cmd, providerId, monthDue);
+    return;
+  }
+  // Missing from-bank → ask
+  if(!cmd.fromBankId){
+    askRepayBank(cmd, providerId);
+    return;
+  }
+  doRepayInstallment(providerId, cmd.amount, cmd.fromBankId);
+}
+
+// Resolve a repayment provider from free text like "uobcc", "uob cc", "uob credit card", "atome"
+function resolveRepayProvider(query){
+  if(!query) return null;
+  const q=query.toLowerCase().replace(/[-–·]/g,' ').replace(/\s+/g,' ').trim();
+  // 1. direct installment-provider detection (handles "uob cc", BNPL keywords, existing banks)
+  const p=detectInstallmentProvider(q);
+  if(p) return p.id;
+  // 2. strip "credit card"/"cc" and collapse spaces → e.g. "uobcc"/"uob credit card" → "uob"
+  const core=q.replace(/credit\s*card/g,' ').replace(/\bcc\b/g,' ').replace(/\s+/g,'').trim();
+  // 3. match against existing credit-card / installment banks by id/name/alias (space-insensitive)
+  const candidates=S.banks.filter(b=>b.type==='creditcard'||b.type==='instalment');
+  for(const b of candidates){
+    const bid=b.id.replace(/[^a-z0-9]/gi,'').toLowerCase();
+    const bname=b.name.replace(/[^a-z0-9]/gi,'').toLowerCase();
+    const aliases=(b.aliases||[]).map(a=>a.replace(/[^a-z0-9]/gi,'').toLowerCase());
+    if(bid.includes(core)||bname.includes(core)||core.includes(bname)||aliases.some(a=>a===core||core.includes(a)||a.includes(core))){
+      if(core.length>=2) return b.id;
+    }
+  }
+  return null;
+}
+
+// Show a picker of providers (those with active installments) for repayment
+function askRepayProvider(cmd){
+  const provIds=[...new Set((S.installments||[]).filter(p=>p.remainingAmount>0.005).map(p=>p.providerId))];
+  // include any credit-card/installment banks too (even without active plans, user may want to pay)
+  S.banks.filter(b=>b.type==='creditcard'||b.type==='instalment').forEach(b=>{ if(!provIds.includes(b.id)) provIds.push(b.id); });
+  if(provIds.length===0){
+    appendSystemBubble(`You have no credit cards or installments yet. Add one first, e.g. "uob cc - iphone 1800/12".`);
+    return;
+  }
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  const opts=provIds.map(id=>{ const b=bankById(id); if(!b)return ''; const s=providerSummary(id);
+    const due=s.thisMonthDue>0?` · ${curSym()} ${s.thisMonthDue.toFixed(2)} due`:'';
+    return `<div class="q-opt" data-pid="${id}">${b.emoji} ${b.name}${due}</div>`; }).join('');
+  bubble.innerHTML=`<div class="bubble-question">Which card / installment to pay?<div class="q-opts">${opts}</div></div>`;
+  bubble.querySelectorAll('.q-opt').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      bubble.remove();
+      handleRepayInstallment({command:'repayInstallment', providerId:btn.dataset.pid, amount:cmd.amount, fromBankId:cmd.fromBankId});
+    });
+  });
+  msgs.appendChild(bubble);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function doRepayInstallment(providerId, payAmount, fromBankId){
+  const active=(S.installments||[]).filter(p=>p.providerId===providerId && p.remainingAmount>0.005);
+  if(active.length===0){ appendSystemBubble('No active installments to pay.'); return; }
+  const provName=active[0].providerName||(bankById(providerId)||{}).name||'Installment';
+  // Split proportionally by MONTHLY amount (so paying one month's due hits each item's monthly)
+  const totalMonthly=active.reduce((a,p)=>a+Math.min(p.monthlyAmount,p.remainingAmount),0);
+  const totalRemaining=active.reduce((a,p)=>a+p.remainingAmount,0);
+  let pay=Math.min(payAmount, totalRemaining);
+  // basis for split: monthly dues (falls back to remaining if no monthly)
+  const basisTotal = totalMonthly>0 ? totalMonthly : totalRemaining;
+  const breakdown=[];
+  let allocated=0;
+  active.forEach((p,idx)=>{
+    const basis = totalMonthly>0 ? Math.min(p.monthlyAmount,p.remainingAmount) : p.remainingAmount;
+    let share;
+    if(idx===active.length-1){
+      share=Math.round((pay-allocated)*100)/100; // last absorbs rounding
+    } else {
+      share=Math.round((pay*(basis/basisTotal))*100)/100;
+    }
+    share=Math.min(share, p.remainingAmount);
+    allocated+=share;
+    p.remainingAmount=Math.round((p.remainingAmount-share)*100)/100;
+    if(p.monthlyAmount>0){
+      p.remainingMonths=Math.max(0, Math.ceil(p.remainingAmount/p.monthlyAmount));
+    } else {
+      p.remainingMonths=p.remainingAmount>0.005?1:0;
+    }
+    if(p.remainingAmount<=0.005){ p.remainingAmount=0; p.remainingMonths=0; p.paid=true; }
+    if(!p.paymentHistory) p.paymentHistory=[];
+    if(share>0) p.paymentHistory.unshift({date:todayStr(), amount:share});
+    breakdown.push({name:p.itemName, amt:share, left:p.remainingAmount, months:p.remainingMonths});
+  });
+  // Record a repayment transaction (expense from the paying bank)
+  const txId=uid();
+  S.transactions.unshift({
+    id:txId, date:todayStr(), time:timeStr(), type:'expense',
+    categoryId:'loans', amount:pay,
+    bankId:fromBankId,
+    description:`${provName} repayment`,
+    item:`Installment payment`,
+    raw:`pay ${provName} ${pay}`
+  });
+  save();
+  updateTodayAmt();
+  if (document.querySelector('#tab-records.active')) renderRecords();
+  if (document.querySelector('#tab-savings.active')) renderSavings();
+  if (document.querySelector('#tab-stats.active')) renderStats();
+  // Confirmation bubble with breakdown
+  const fb=bankById(fromBankId);
+  const lines=breakdown.map(b=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:2px 0;font-size:12px"><span>${b.name} −${curSym()} ${b.amt.toFixed(2)}</span><span style="color:var(--text-muted)">${curSym()} ${b.left.toFixed(2)} left · ${b.months}mo</span></div>`).join('');
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  bubble.innerHTML=`
+    <div class="bubble-category" style="color:var(--success)">💳 ${provName} Repayment</div>
+    <div class="bubble-main">
+      <div class="bubble-desc">Paid from ${fb?fb.name:''}</div>
+      <div class="bubble-amount">${curSym()} ${pay.toFixed(2)}</div>
+    </div>
+    <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:6px">${lines}</div>
+  `;
+  msgs.appendChild(bubble);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function askRepayAmount(cmd, providerId, suggestedDue){
+  const pb=bankById(providerId);
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  const sugg = suggestedDue>0 ? `<div class="q-opts" style="margin-top:8px"><div class="q-opt" id="repay-sugg">This month: ${curSym()} ${suggestedDue.toFixed(2)}</div></div>` : '';
+  bubble.innerHTML=`<div class="bubble-question">How much to pay ${pb?pb.name:''}?
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <input class="field q-typein" id="repay-amt" type="number" inputmode="decimal" placeholder="0.00" step="0.01" style="flex:1;font-size:13px;font-family:var(--mono)">
+      <button class="btn btn-primary" id="repay-ok" style="padding:8px 16px">OK</button>
+    </div>${sugg}</div>`;
+  const inp=bubble.querySelector('#repay-amt');
+  const submit=(val)=>{
+    const v=val!=null?val:parseFloat(inp.value);
+    if(!isNaN(v)&&v>0){
+      bubble.remove();
+      handleRepayInstallment({command:'repayInstallment', providerId, amount:v, fromBankId:cmd.fromBankId});
+    } else { inp.focus(); }
+  };
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter') submit(); });
+  bubble.querySelector('#repay-ok').addEventListener('click',()=>submit());
+  const sb=bubble.querySelector('#repay-sugg');
+  if(sb) sb.addEventListener('click',()=>submit(suggestedDue));
+  msgs.appendChild(bubble);
+  setTimeout(()=>inp.focus(),50);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function askRepayBank(cmd, providerId){
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  // Only show real funding sources (not the installment provider itself)
+  const opts=S.banks.filter(b=>b.id!==providerId && b.type!=='instalment').map(b=>`<div class="q-opt" data-bank="${b.id}">${b.emoji} ${b.name}</div>`).join('');
+  bubble.innerHTML=`<div class="bubble-question">Which bank do you want to pay from?<div class="q-opts">${opts}</div></div>`;
+  bubble.querySelectorAll('.q-opt').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      bubble.remove();
+      handleRepayInstallment({command:'repayInstallment', providerId, amount:cmd.amount, fromBankId:btn.dataset.bank});
+    });
+  });
+  msgs.appendChild(bubble);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function handleSavingsTransfer(cmd) {
+  // Validate banks and amount
+  if (!cmd.fromBankId || !cmd.toBankId) {
+    appendSystemBubble(`Couldn't read the savings transfer. Try: "savings - HLB to OCBC 70"`);
+    return;
+  }
+  if (cmd.fromBankId===cmd.toBankId) {
+    appendSystemBubble(`From and To accounts must be different.`);
+    return;
+  }
+  if (cmd.amount==null || cmd.amount<=0) {
+    appendSystemBubble(`Please include an amount, e.g. "savings - ${cmd.fromName} to ${cmd.toName} 70"`);
+    return;
+  }
+  const txId=uid();
+  // Record a single savings-transfer transaction (moves money from→to)
+  S.transactions.unshift({
+    id:txId, date:todayStr(), time:timeStr(), type:'savings',
+    categoryId:'transfer', amount:cmd.amount,
+    bankId:cmd.fromBankId, toBankId:cmd.toBankId,
+    description:'Savings', item:`${cmd.fromName} → ${cmd.toName}`,
+    raw:`savings ${cmd.fromName} to ${cmd.toName} ${cmd.amount}`
+  });
+  // Flag the destination bank as a savings bank (dynamic, learned from behavior)
+  const toBank=S.banks.find(b=>b.id===cmd.toBankId);
+  if (toBank){ toBank.role='savings'; toBank.isSavingsBank=true; }
+  save();
+  updateTodayAmt();
+  if (document.querySelector('#tab-records.active')) renderRecords();
+  if (document.querySelector('#tab-savings.active')) renderSavings();
+  if (document.querySelector('#tab-stats.active')) renderStats();
+  // Confirmation bubble
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  bubble.innerHTML=`
+    <div class="bubble-category" style="color:var(--success)">🏦 Savings Transfer</div>
+    <div class="bubble-main">
+      <div class="bubble-desc">${cmd.fromName} → ${cmd.toName}</div>
+      <div class="bubble-amount">${curSym()} ${cmd.amount.toFixed(2)}</div>
+    </div>
+    <div class="bubble-meta">Moved to savings · ${fmtDate(todayStr())}</div>
+  `;
+  msgs.appendChild(bubble);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+// Fuzzy-match a typed query against fixed-expense names.
+// Returns {item} for a confident match, {candidates:[...]} when ambiguous, or null when nothing close.
+function findFixedFuzzy(query){
+  const q=(query||'').toLowerCase().trim();
+  if(!q || !S.fixedExpenses || !S.fixedExpenses.length) return null;
+  // Common nicknames / abbreviations → map to part of the real name
+  const ALIASES={
+    'net':'internet','wifi':'internet','streamyx':'internet','unifi':'internet','broadband':'internet',
+    'data':'mobile data','phone bill':'mobile data','celcom':'mobile data','maxis':'mobile data','digi':'mobile data','umobile':'mobile data',
+    'rent':'rental','house':'rental','room':'rental',
+    'ins':'insurance','medical card':'insurance','takaful':'insurance',
+    'nflx':'netflix','dis':'disney','disney plus':'disney+','spot':'spotify','icld':'icloud','cloud':'icloud',
+  };
+  const expanded = ALIASES[q] || q;
+  // normalize: strip non-alphanumerics for comparison
+  const norm=s=>s.toLowerCase().replace(/[^a-z0-9]/g,'');
+  const nq=norm(expanded);
+  let best=null, bestScore=0;
+  const close=[];
+  for(const f of S.fixedExpenses){
+    const fn=f.name.toLowerCase();
+    const nf=norm(fn);
+    let score=0;
+    if(fn===expanded || nf===nq) score=100;                          // exact
+    else if(nf.includes(nq) || nq.includes(nf)) score=85;            // substring
+    else {
+      // word overlap
+      const qWords=expanded.split(/\s+/).filter(Boolean);
+      const fWords=fn.split(/\s+/).filter(Boolean);
+      const overlap=qWords.filter(w=>fWords.some(fw=>fw.includes(w)||w.includes(fw))).length;
+      if(overlap>0) score=60+overlap*5;
+      else {
+        // typo tolerance via edit distance on the normalized strings
+        const d=editDistance(nq, nf);
+        const maxLen=Math.max(nq.length, nf.length);
+        if(maxLen>0){
+          const sim=1-(d/maxLen);
+          if(sim>=0.7) score=Math.round(sim*70); // up to ~70 for near-typos
+        }
+      }
+    }
+    if(score>0) close.push({item:f, score});
+    if(score>bestScore){ bestScore=score; best=f; }
+  }
+  if(bestScore>=85) return {item:best};                  // confident
+  // ambiguous / weak: return the close ones for the user to pick
+  const cands=close.filter(c=>c.score>=40).sort((a,b)=>b.score-a.score).map(c=>c.item);
+  if(cands.length===1 && bestScore>=60) return {item:cands[0]};
+  if(cands.length>=1) return {candidates:cands};
+  return null;
+}
+
+// Levenshtein edit distance
+function editDistance(a,b){
+  const m=a.length, n=b.length;
+  if(m===0)return n; if(n===0)return m;
+  const dp=Array.from({length:m+1},(_,i)=>[i,...Array(n).fill(0)]);
+  for(let j=0;j<=n;j++)dp[0][j]=j;
+  for(let i=1;i<=m;i++){
+    for(let j=1;j<=n;j++){
+      const cost=a[i-1]===b[j-1]?0:1;
+      dp[i][j]=Math.min(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+cost);
+    }
+  }
+  return dp[m][n];
+}
+
+function handlePayFixed(cmd) {
+  // Find matching fixed expense by name (fuzzy: handles typos, abbreviations, partial)
+  let item=null;
+  const fuzzy=findFixedFuzzy(cmd.query);
+  if(fuzzy && fuzzy.item){ item=fuzzy.item; }
+  else if(fuzzy && fuzzy.candidates && fuzzy.candidates.length){
+    // Ambiguous — let the user pick which fixed expense they meant
+    askWhichFixed(cmd, fuzzy.candidates);
+    return;
+  }
+  if (!item) {
+    appendSystemBubble(`No fixed expense found matching "${cmd.query}". Check the name in the Fixed tab, or add it there first.`);
     return;
   }
   const payDate=cmd.date||todayStr();
   const payMonth=payDate.slice(0,7);
-  // Create expense record at the paid date
+
+  // ── DUPLICATE CHECK: already marked paid for this billing month? ──
+  if (item.lastPaidDate===payMonth) {
+    const existing=item.paidTxId ? S.transactions.find(t=>t.id===item.paidTxId) : null;
+    const monthLabel=new Date(payDate+'T00:00:00').toLocaleDateString('en-MY',{month:'long',year:'numeric'});
+    const msgs=document.getElementById('chat-messages');
+    const bubble=document.createElement('div');
+    bubble.className='bubble';
+    const existsLine = existing
+      ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px">Existing record: ${item.emoji} ${item.name} · ${curSym()} ${(existing.amount||0).toFixed(2)} on ${fmtDate(existing.date)}</div>`
+      : '';
+    bubble.innerHTML=`
+      <div class="bubble-category" style="color:var(--accent)">⚠️ Already Paid</div>
+      <div style="font-size:13px;color:var(--text);line-height:1.5">${item.emoji} ${item.name} is already marked as paid for ${monthLabel}. No duplicate transaction was created.</div>
+      ${existsLine}
+      ${existing?`<div class="q-opts" style="margin-top:8px"><div class="q-opt" id="dup-view">View record</div></div>`:''}
+    `;
+    msgs.appendChild(bubble);
+    msgs.scrollTop=msgs.scrollHeight;
+    if(existing){
+      const vb=bubble.querySelector('#dup-view');
+      if(vb) vb.addEventListener('click',()=>{ switchTab('records'); });
+    }
+    return; // BLOCK duplicate processing
+  }
+
+  // Resolve amount — from command, else item's saved amount; if still missing, ASK
+  let amount=cmd.amount!=null?cmd.amount:(parseFloat(item.amount)||0);
+  // Resolve bank — from command if user typed "from X", else item's saved bank
+  let bankId=cmd.fromBankId||item.bankId||null;
+
+  // If amount missing → ask, then re-run
+  if(!amount||amount<=0){
+    askFixedAmount(item, ()=>handlePayFixed({...cmd, amount:parseFloat(item.amount)||0}));
+    return;
+  }
+  // If bank missing → ask which account paid, then re-run
+  if(!bankId || !bankById(bankId)){
+    askFixedBank(item, ()=>handlePayFixed({...cmd, amount, fromBankId:item.bankId}));
+    return;
+  }
+
+  // All set → create expense record at the paid date
   const txId=uid();
   S.transactions.unshift({
     id:txId, date:payDate, time:timeStr(), type:'expense',
     categoryId:item.categoryId||'other', amount:amount,
-    bankId:item.bankId, description:item.name, item:'Fixed Expense', raw:item.name
+    bankId:bankId, description:item.name, item:'Fixed Expense', raw:item.name
   });
   // Update fixed item: mark paid for that month, set billing day from paid date
   item.lastPaidDate=payMonth;
   item.paidTxId=txId;
   const payDay=parseInt(payDate.slice(8,10));
-  item.dayOfMonth=payDay; // cycle now anchored to the paid date
+  item.dayOfMonth=payDay;
   if (item.cycle==='yearly') item.billingMonth=parseInt(payDate.slice(5,7));
   item.amount=String(amount);
+  if(!item.bankId) item.bankId=bankId; // remember the chosen bank for next time
   save();
   updateTodayAmt();
   if (document.querySelector('#tab-fixed.active')) renderFixed();
+  if (document.querySelector('#tab-savings.active')) renderSavings();
+  if (document.querySelector('#tab-stats.active')) renderStats();
   // Confirmation bubble
-  const bank=bankById(item.bankId);
+  const bank=bankById(bankId);
   const msgs=document.getElementById('chat-messages');
   const bubble=document.createElement('div');
   bubble.className='bubble';
@@ -1582,10 +2819,33 @@ function handlePayFixed(cmd) {
     <div class="bubble-category">📌 Fixed Expense Paid</div>
     <div class="bubble-main">
       <div class="bubble-desc">${item.emoji} ${item.name}${bank?' · '+bank.name:''}</div>
-      <div class="bubble-amount">−RM ${amount.toFixed(2)}</div>
+      <div class="bubble-amount">−${curSym()} ${amount.toFixed(2)}</div>
     </div>
     <div class="bubble-meta">Paid on ${niceDate} · cycle now starts day ${payDay}</div>
   `;
+  msgs.appendChild(bubble);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+// Ambiguous fixed-expense name → ask the user which one they meant
+function askWhichFixed(cmd, candidates){
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  const opts=candidates.map(f=>`<div class="q-opt" data-fid="${f.id}">${f.emoji} ${f.name}</div>`).join('')
+    + `<div class="q-opt" id="whichfx-none" style="color:var(--text-dim)">None of these</div>`;
+  bubble.innerHTML=`<div class="bubble-question">Did you mean one of these fixed expenses?<div class="q-opts">${opts}</div></div>`;
+  bubble.querySelectorAll('.q-opt').forEach(btn=>{
+    if(btn.id==='whichfx-none'){
+      btn.addEventListener('click',()=>{ bubble.remove(); appendSystemBubble(`Okay, no fixed expense recorded. You can add it in the Fixed tab.`); });
+      return;
+    }
+    btn.addEventListener('click',()=>{
+      const f=S.fixedExpenses.find(x=>x.id===btn.dataset.fid);
+      bubble.remove();
+      if(f) handlePayFixed({...cmd, query:f.name.toLowerCase()});
+    });
+  });
   msgs.appendChild(bubble);
   msgs.scrollTop=msgs.scrollHeight;
 }
@@ -1634,6 +2894,43 @@ const MEAL_OPTIONS=[
 ];
 
 function processPendingTx(tx){
+  // ── LOAN REPAYMENT (income): needs amount + which bank received it ──
+  if(tx._isLoanRepay){
+    if(tx.amount==null||tx.amount===''){ askAmount(tx); return; }
+    if(!tx.bankId){ askBank(tx, 'loan-in'); return; }
+    finalizePendingTx(tx); return;
+  }
+  // ── PERSON TRANSFER (in/out): needs amount + which bank + optional note ──
+  if(tx._isPersonTransfer){
+    if(tx.amount==null||tx.amount===''){ askAmount(tx); return; }
+    if(!tx.bankId){ askBank(tx, tx._transferDir==='out'?'pt-out':'pt-in'); return; }
+    if(!tx._noteAsked){ askTransferNote(tx); return; }
+    finalizePendingTx(tx); return;
+  }
+  // ── INSTALLMENT flow: needs provider, amount, category, months ──
+  if(tx._isInstallment){
+    if(!tx._instProviderId){ askInstallmentProvider(tx); return; }
+    if(tx.amount==null||tx.amount===''){ askAmount(tx); return; }
+    if(!tx.categoryId){ askCategory(tx); return; }
+    if(!tx.description && !tx._descAsked){ askDescription(tx); return; }
+    if(tx._instMonths==null){ askInstallmentMonths(tx); return; }
+    finalizePendingTx(tx); return;
+  }
+  // ── SAVINGS flow: from-bank → to-bank → amount ──
+  if(tx._isSavings || tx.type==='savings'){
+    if(!tx.bankId){ askBank(tx,'savings-from'); return; }
+    if(!tx.toBankId){ askBank(tx,'savings-to'); return; }
+    if(tx.amount==null||tx.amount===''){ askAmount(tx); return; }
+    finalizePendingTx(tx); return;
+  }
+  // ── TRANSFER flow: needs from-bank, to-bank, amount only ──
+  if(tx._isTransfer || tx.type==='transfer'){
+    if(!tx.bankId){ askBank(tx,'from'); return; }
+    if(!tx.toBankId){ askBank(tx,'to'); return; }
+    if(tx.amount==null||tx.amount===''){ askAmount(tx); return; }
+    finalizePendingTx(tx); return;
+  }
+
   const isFood = tx.categoryId==='food';
   // 1. Category missing?
   if(!tx.categoryId){
@@ -1659,14 +2956,155 @@ function processPendingTx(tx){
   if(!tx.bankId){
     askBank(tx); return;
   }
+  // 5b. If the chosen bank is a credit-card / installment account → convert to installment flow
+  //     (asks how many months, then records under that provider so it shows in the provider card)
+  if(!tx._instConverted && tx.type==='expense'){
+    const bk=bankById(tx.bankId);
+    if(bk && (bk.type==='instalment' || bk.type==='creditcard')){
+      tx._instConverted=true;
+      tx._isInstallment=true;
+      tx._instProviderId=bk.id;
+      tx._instProviderName=bk.name;
+      if(tx._instMonths==null){ askInstallmentMonths(tx); return; }
+      finalizePendingTx(tx); return;
+    }
+  }
   // All filled → finalize
   finalizePendingTx(tx);
 }
 
 function finalizePendingTx(tx){
+  // Loan repayment (income): clean up flags, save as income under inc_loan
+  if(tx._isLoanRepay){
+    delete tx._needsFill; delete tx._isLoanRepay;
+    saveTransaction(tx);
+    appendResultBubble(tx);
+    updateTodayAmt();
+    if (document.querySelector('#tab-records.active')) renderRecords();
+    if (document.querySelector('#tab-savings.active')) renderSavings();
+    if (document.querySelector('#tab-stats.active')) renderStats();
+    return;
+  }
+  // Person transfer (in/out): keep type income/expense, clean up flags
+  if(tx._isPersonTransfer){
+    delete tx._needsFill; delete tx._isPersonTransfer; delete tx._transferDir; delete tx._who;
+    saveTransaction(tx);
+    appendResultBubble(tx);
+    updateTodayAmt();
+    if (document.querySelector('#tab-records.active')) renderRecords();
+    if (document.querySelector('#tab-savings.active')) renderSavings();
+    if (document.querySelector('#tab-stats.active')) renderStats();
+    return;
+  }
+  // Installment: create the expense record + an installment/one-time plan under the provider
+  if(tx._isInstallment){
+    const months=tx._instMonths;
+    const provName=tx._instProviderName||'Installment';
+    const itemName=tx.description||'Item';
+    const total=tx.amount;
+    if(!months || months<=1){
+      // One-time purchase under this provider (e.g. "atome - choc 50" → No installment)
+      // Tracked as a plan with months=1 so it shows in One-time section + This Month Due until paid
+      const planId=uid();
+      if(!S.installments) S.installments=[];
+      S.installments.push({
+        id:planId, providerId:tx._instProviderId, providerName:provName,
+        itemName, categoryId:tx.categoryId||'other',
+        total, months:1, monthlyAmount:total,
+        remainingMonths:1, remainingAmount:total,
+        createdDate:todayStr(), paid:false, paymentHistory:[]
+      });
+      const txId=uid();
+      S.transactions.unshift({
+        id:txId, date:todayStr(), time:timeStr(), type:'expense',
+        categoryId:tx.categoryId||'other', amount:total,
+        bankId:tx._instProviderId,
+        description:itemName,
+        item:`${provName} · one-time`,
+        raw:tx.raw, installmentPlanId:planId
+      });
+      save();
+      updateTodayAmt();
+      if (document.querySelector('#tab-records.active')) renderRecords();
+      if (document.querySelector('#tab-savings.active')) renderSavings();
+      if (document.querySelector('#tab-stats.active')) renderStats();
+      const cat0=catById(tx.categoryId);
+      const msgs0=document.getElementById('chat-messages');
+      const b0=document.createElement('div'); b0.className='bubble';
+      b0.innerHTML=`<div class="bubble-category">${cat0?cat0.emoji+' '+cat0.name:'🗂️'} · ${provName}</div><div class="bubble-main"><div class="bubble-desc">${itemName} (one-time)</div><div class="bubble-amount expense">${curSym()} ${total.toFixed(2)}</div></div><div class="bubble-meta">Added to ${provName} · unpaid</div>`;
+      msgs0.appendChild(b0); msgs0.scrollTop=msgs0.scrollHeight;
+      return;
+    }
+    const monthly=Math.round((total/months)*100)/100;
+    const planId=uid();
+    // Create the installment plan
+    if(!S.installments) S.installments=[];
+    S.installments.push({
+      id:planId, providerId:tx._instProviderId, providerName:provName,
+      itemName, categoryId:tx.categoryId||'other',
+      total, months, monthlyAmount:monthly,
+      remainingMonths:months, remainingAmount:total,
+      createdDate:todayStr(), paid:false, paymentHistory:[]
+    });
+    // Create the expense record (full amount, marked as installment)
+    const txId=uid();
+    S.transactions.unshift({
+      id:txId, date:todayStr(), time:timeStr(), type:'expense',
+      categoryId:tx.categoryId||'other', amount:total,
+      bankId:tx._instProviderId,
+      description:itemName,
+      item:`Installment · ${provName} · ${months}mo · ${curSym()} ${monthly.toFixed(2)}/mo`,
+      raw:tx.raw, installmentPlanId:planId
+    });
+    save();
+    updateTodayAmt();
+    if (document.querySelector('#tab-records.active')) renderRecords();
+    if (document.querySelector('#tab-savings.active')) renderSavings();
+    if (document.querySelector('#tab-stats.active')) renderStats();
+    // Confirmation bubble
+    const cat=catById(tx.categoryId);
+    const msgs=document.getElementById('chat-messages');
+    const bubble=document.createElement('div');
+    bubble.className='bubble';
+    bubble.innerHTML=`
+      <div class="bubble-category">${cat?cat.emoji+' '+cat.name:'🗂️'} · Installment</div>
+      <div class="bubble-main">
+        <div class="bubble-desc">${itemName} (${provName})</div>
+        <div class="bubble-amount expense">${curSym()} ${total.toFixed(2)} / ${months}</div>
+      </div>
+      <div class="bubble-meta">${curSym()} ${monthly.toFixed(2)}/month · ${months} months</div>
+    `;
+    msgs.appendChild(bubble);
+    msgs.scrollTop=msgs.scrollHeight;
+    return;
+  }
+  // Savings: deduct from source, add to destination, flag destination as savings bank
+  if(tx._isSavings || tx.type==='savings'){
+    const fb=bankById(tx.bankId), tb=bankById(tx.toBankId);
+    tx.type='savings';
+    tx.categoryId='transfer';
+    tx.description='Savings';
+    tx.item=`${fb?fb.name:'?'} → ${tb?tb.name:'?'}`;
+    if(tb){ tb.role='savings'; tb.isSavingsBank=true; } // learn savings destination
+    delete tx._needsFill; delete tx._isSavings;
+    saveTransaction(tx);
+    appendResultBubble(tx);
+    updateTodayAmt();
+    if (document.querySelector('#tab-records.active')) renderRecords();
+    if (document.querySelector('#tab-savings.active')) renderSavings();
+    if (document.querySelector('#tab-stats.active')) renderStats();
+    return;
+  }
+  // Transfer: rebuild label from chosen banks
+  if(tx._isTransfer || tx.type==='transfer'){
+    const fb=bankById(tx.bankId), tb=bankById(tx.toBankId);
+    tx.description='Transfer';
+    tx.item=`${fb?fb.name:'?'} → ${tb?tb.name:'?'}`;
+    tx.categoryId='transfer';
+  }
   // Build description/item nicely
   if(!tx.description) tx.description=tx.item||tx.raw;
-  delete tx._needsFill; delete tx._isFood; delete tx._mealAsked; delete tx._descAsked;
+  delete tx._needsFill; delete tx._isFood; delete tx._mealAsked; delete tx._descAsked; delete tx._isTransfer; delete tx._fromBankName; delete tx._toBankName;
   saveTransaction(tx);
   appendResultBubble(tx);
   updateTodayAmt();
@@ -1682,11 +3120,16 @@ function askCategory(tx){
   const isIncome=tx.type==='income';
   const catList=isIncome
     ? S.categories.filter(c=>c.isIncome)
-    : S.categories.filter(c=>c.id!=='transfer'&&!c.isIncome);
+    : S.categories.filter(c=>!INTERNAL_CATS.has(c.id)&&!c.isIncome);
   const opts=catList.map(c=>`<div class="q-opt" data-cat="${c.id}">${c.emoji} ${c.name}</div>`).join('');
   const q=isIncome?'Which income type?':'Which category?';
-  bubble.innerHTML=`<div class="bubble-question">${q}<div class="q-opts">${opts}</div></div>`;
+  // For an expense, offer a switch to income categories ("this is actually income")
+  const incomeToggle=!isIncome
+    ? `<div class="q-opts" style="margin-top:6px"><div class="q-opt" id="cat-is-income" style="border-color:var(--success);color:var(--success)">💰 This is an income</div></div>`
+    : '';
+  bubble.innerHTML=`<div class="bubble-question">${q}<div class="q-opts">${opts}</div>${incomeToggle}</div>`;
   bubble.querySelectorAll('.q-opt').forEach(btn=>{
+    if(btn.id==='cat-is-income') return; // handled separately
     btn.addEventListener('click',()=>{
       tx.categoryId=btn.dataset.cat;
       tx._isFood = tx.categoryId==='food';
@@ -1697,6 +3140,16 @@ function askCategory(tx){
       processPendingTx(tx);
     });
   });
+  // "This is an income" → flip the transaction to income and re-ask with income categories
+  const incBtn=bubble.querySelector('#cat-is-income');
+  if(incBtn){
+    incBtn.addEventListener('click',()=>{
+      tx.type='income';
+      tx.categoryId=null;
+      bubble.remove();
+      askCategory(tx); // re-ask, now in income mode
+    });
+  }
   msgs.appendChild(bubble);
   msgs.scrollTop=msgs.scrollHeight;
 }
@@ -1708,7 +3161,10 @@ function askMeal(tx){
   bubble.className='bubble';
   const opts=MEAL_OPTIONS.map(m=>`<div class="q-opt" data-meal="${m.val}">${m.label}</div>`).join('');
   bubble.innerHTML=`<div class="bubble-question">Which meal?<div class="q-opts">${opts}</div>
-    <input class="field q-typein" id="meal-typein" placeholder="or type it..." style="margin-top:8px;font-size:13px"></div>`;
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <input class="field q-typein" id="meal-typein" placeholder="or type it..." style="flex:1;font-size:13px">
+      <button class="btn btn-primary" id="meal-ok" style="padding:8px 16px">OK</button>
+    </div></div>`;
   bubble.querySelectorAll('.q-opt').forEach(btn=>{
     btn.addEventListener('click',()=>{
       tx.description=btn.dataset.meal;
@@ -1717,13 +3173,15 @@ function askMeal(tx){
     });
   });
   const inp=bubble.querySelector('#meal-typein');
-  inp.addEventListener('keydown',e=>{
-    if(e.key==='Enter'&&inp.value.trim()){
+  const submitMeal=()=>{
+    if(inp.value.trim()){
       tx.description=inp.value.trim();
       bubble.remove();
       processPendingTx(tx);
-    }
-  });
+    } else { inp.focus(); }
+  };
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter') submitMeal(); });
+  bubble.querySelector('#meal-ok').addEventListener('click',submitMeal);
   msgs.appendChild(bubble);
   msgs.scrollTop=msgs.scrollHeight;
 }
@@ -1736,25 +3194,29 @@ function askDescription(tx){
   const isFood=tx.categoryId==='food';
   const prompt=isFood?'What did you eat?':'What was it for?';
   bubble.innerHTML=`<div class="bubble-question">${prompt}
-    <input class="field q-typein" id="desc-typein" placeholder="type here..." style="margin-top:8px;font-size:13px">
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <input class="field q-typein" id="desc-typein" placeholder="type here..." style="flex:1;font-size:13px">
+      <button class="btn btn-primary" id="desc-ok" style="padding:8px 16px">OK</button>
+    </div>
     <div class="q-opts" style="margin-top:8px"><div class="q-opt" id="desc-skip">Skip</div></div></div>`;
   const inp=bubble.querySelector('#desc-typein');
   const submit=()=>{
     const v=inp.value.trim();
     if(v){
-      if(isFood) tx.item=v;          // food: store as item (meal is in description)
+      if(isFood) tx.item=v;
       else if(tx.description) tx.item=v;
       else tx.description=v;
     } else {
-      // skipped with nothing → mark item filled so it doesn't loop
       if(isFood && !tx.item) tx.item='';
     }
     bubble.remove();
     processPendingTx(tx);
   };
   inp.addEventListener('keydown',e=>{ if(e.key==='Enter') submit(); });
+  bubble.querySelector('#desc-ok').addEventListener('click',submit);
   bubble.querySelector('#desc-skip').addEventListener('click',()=>{
-    if(isFood) tx._descAsked=true; // ensure no re-loop
+    if(isFood) tx._descAsked=true;
+    inp.value='';
     submit();
   });
   msgs.appendChild(bubble);
@@ -1767,33 +3229,130 @@ function askAmount(tx){
   const bubble=document.createElement('div');
   bubble.className='bubble';
   bubble.innerHTML=`<div class="bubble-question">How much? (RM)
-    <input class="field q-typein" id="amt-typein" type="number" inputmode="decimal" placeholder="0.00" step="0.01" style="margin-top:8px;font-size:13px;font-family:var(--mono)"></div>`;
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <input class="field q-typein" id="amt-typein" type="number" inputmode="decimal" placeholder="0.00" step="0.01" style="flex:1;font-size:13px;font-family:var(--mono)">
+      <button class="btn btn-primary" id="amt-ok" style="padding:8px 16px">OK</button>
+    </div></div>`;
   const inp=bubble.querySelector('#amt-typein');
-  inp.addEventListener('keydown',e=>{
-    if(e.key==='Enter'){
-      const v=parseFloat(inp.value);
-      if(!isNaN(v)&&v>0){
-        tx.amount=v;
-        bubble.remove();
-        processPendingTx(tx);
-      }
+  const submit=()=>{
+    const v=parseFloat(inp.value);
+    if(!isNaN(v)&&v>0){
+      tx.amount=v;
+      bubble.remove();
+      processPendingTx(tx);
+    } else { inp.focus(); }
+  };
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter') submit(); });
+  bubble.querySelector('#amt-ok').addEventListener('click',submit);
+  msgs.appendChild(bubble);
+  setTimeout(()=>inp.focus(),50);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function askInstallmentProvider(tx){
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  // Existing installment/credit-card providers + the standard BNPL options
+  const existing=S.banks.filter(b=>b.type==='instalment'||b.type==='creditcard');
+  const seen=new Set(existing.map(b=>b.id));
+  let opts=existing.map(b=>`<div class="q-opt" data-pid="${b.id}" data-pname="${b.name}">${b.emoji} ${b.name}</div>`).join('');
+  // add standard BNPL providers not already present
+  BNPL_PROVIDERS.forEach(p=>{ if(!seen.has(p.id)) opts+=`<div class="q-opt" data-bnpl="${p.id}">${p.emoji} ${p.name}</div>`; });
+  // generic credit card option
+  opts+=`<div class="q-opt" data-cc="1">💳 Credit Card</div>`;
+  bubble.innerHTML=`<div class="bubble-question">Which provider is this installment under?<div class="q-opts">${opts}</div></div>`;
+  bubble.querySelectorAll('.q-opt').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      let prov;
+      if(btn.dataset.pid){ const b=bankById(btn.dataset.pid); prov={id:b.id,name:b.name}; }
+      else if(btn.dataset.bnpl){ const bp=BNPL_PROVIDERS.find(p=>p.id===btn.dataset.bnpl); prov=ensureProviderBank(bp); }
+      else { prov=ensureProviderBank({id:'cc_generic',name:'Credit Card',emoji:'💳'}); }
+      tx._instProviderId=prov.id;
+      tx._instProviderName=prov.name;
+      tx.bankId=prov.id;
+      bubble.remove();
+      processPendingTx(tx);
+    });
+  });
+  msgs.appendChild(bubble);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function askInstallmentMonths(tx){
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  const opts=[3,6,12,24,36].map(m=>`<div class="q-opt" data-months="${m}">${m} months</div>`).join('')
+    +`<div class="q-opt" data-months="0">No installment (full)</div>`;
+  bubble.innerHTML=`<div class="bubble-question">How many months to split this into?<div class="q-opts">${opts}</div></div>`;
+  bubble.querySelectorAll('.q-opt').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      tx._instMonths=parseInt(btn.dataset.months);
+      bubble.remove();
+      processPendingTx(tx);
+    });
+  });
+  msgs.appendChild(bubble);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function askTransferNote(tx){
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  const dirWord = tx._transferDir==='out' ? 'this transfer out' : 'this transfer in';
+  bubble.innerHTML=`<div class="bubble-question">What is ${dirWord} for? (optional)
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <input class="field q-typein" id="tnote-input" type="text" placeholder="e.g. dinner share, loan, gift..." style="flex:1;font-size:13px">
+      <button class="btn btn-primary" id="tnote-ok" style="padding:8px 16px">OK</button>
+    </div>
+    <div class="q-opts" style="margin-top:8px"><div class="q-opt" id="tnote-skip">Skip</div></div></div>`;
+  const inp=bubble.querySelector('#tnote-input');
+  const submit=()=>{
+    const v=(inp.value||'').trim();
+    tx._noteAsked=true;
+    if(v){
+      // append the purpose to the description/item
+      const base = tx._transferDir==='out' ? 'Transfer to ' : 'Transfer from ';
+      tx.description = base + (tx._who||'?') + ' · ' + v;
+      tx.item = (tx._who||'') + (tx._who?' · ':'') + v;
     }
+    bubble.remove();
+    processPendingTx(tx);
+  };
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter') submit(); });
+  bubble.querySelector('#tnote-ok').addEventListener('click',submit);
+  bubble.querySelector('#tnote-skip').addEventListener('click',()=>{
+    tx._noteAsked=true;
+    bubble.remove();
+    processPendingTx(tx);
   });
   msgs.appendChild(bubble);
   setTimeout(()=>inp.focus(),50);
   msgs.scrollTop=msgs.scrollHeight;
 }
 
-function askBank(tx){
+function askBank(tx, which){
   const msgs=document.getElementById('chat-messages');
   const bubble=document.createElement('div');
   bubble.className='bubble';
   const opts=S.banks.map(b=>`<div class="q-opt" data-bank="${b.id}">${b.emoji} ${b.name}</div>`).join('');
-  const q=tx.type==='income'?'Which account received it?':'Which account / wallet paid?';
+  let q;
+  if(which==='from') q='Transfer FROM which account?';
+  else if(which==='to') q='Transfer TO which account?';
+  else if(which==='savings-from') q='💰 Savings FROM which account?';
+  else if(which==='savings-to') q='💰 Savings TO which account?';
+  else if(which==='pt-in') q='📥 Which account received the money?';
+  else if(which==='pt-out') q='📤 Which account did it come from?';
+  else if(which==='loan-in') q='🤝 Which account received the loan repayment?';
+  else if(tx.type==='income') q='Which account received it?';
+  else q='Which account / wallet paid?';
   bubble.innerHTML=`<div class="bubble-question">${q}<div class="q-opts">${opts}</div></div>`;
   bubble.querySelectorAll('.q-opt').forEach(btn=>{
     btn.addEventListener('click',()=>{
-      tx.bankId=btn.dataset.bank;
+      if(which==='to'||which==='savings-to') tx.toBankId=btn.dataset.bank;
+      else tx.bankId=btn.dataset.bank;
       bubble.remove();
       processPendingTx(tx);
     });
@@ -1825,8 +3384,8 @@ function renderRecords() {
     for (const tx of groups[date]) {
       const cat=catById(tx.categoryId);
       const bank=bankById(tx.bankId);
-      const amtClass=tx.type==='income'?'income':tx.type==='transfer'?'transfer':'';
-      const amtPrefix=tx.type==='income'?'+RM ':tx.type==='transfer'?'RM ':'−RM ';
+      const amtClass=tx.type==='income'?'income':(tx.type==='transfer'||tx.type==='savings')?'transfer':'';
+      const amtPrefix=tx.type==='income'?'+'+curSym()+' ':(tx.type==='transfer'||tx.type==='savings')?curSym()+' ':'−'+curSym()+' ';
       const row2parts=[tx.description,tx.item,bank?bank.name:null,tx.time].filter(Boolean);
       html+=`
         <div class="rec-item" data-id="${tx.id}">
@@ -1912,7 +3471,7 @@ function updateFixedSummary() {
     const item=S.fixedExpenses.find(f=>f.id===id);
     if(item)total+=parseFloat(item.amount)||0;
   });
-  el.innerHTML=`<span class="sum-sel">Selected ${fixedSelectedIds.size}</span><span class="sum-total">RM ${total.toFixed(2)}</span>`;
+  el.innerHTML=`<span class="sum-sel">Selected ${fixedSelectedIds.size}</span><span class="sum-total">${curSym()} ${total.toFixed(2)}</span>`;
 }
 
 function renderFixed() {
@@ -2008,6 +3567,11 @@ function renderFixed() {
       const item=S.fixedExpenses.find(f=>f.id===btn.dataset.id);
       if(!item)return;
       showConfirmModal(`Delete "${item.name}"?`,()=>{
+        // If it's one of the default starter items, remember it was deleted (don't re-add)
+        if(DEFAULT_FIXED.some(d=>d.name.toLowerCase()===item.name.toLowerCase())){
+          if(!S.deletedFixedNames) S.deletedFixedNames=[];
+          if(!S.deletedFixedNames.map(n=>n.toLowerCase()).includes(item.name.toLowerCase())) S.deletedFixedNames.push(item.name);
+        }
         S.fixedExpenses=S.fixedExpenses.filter(f=>f.id!==btn.dataset.id);
         fixedSelectedIds.delete(btn.dataset.id);
         save();renderFixed();
@@ -2021,7 +3585,7 @@ function renderFixed() {
 function showFixedModal(item) {
   const isEdit=!!item;
   const bankOpts=S.banks.filter(b=>b.type!=='instalment').map(b=>`<option value="${b.id}"${item&&b.id===item.bankId?' selected':''}>${b.emoji} ${b.name}</option>`).join('');
-  const catOpts=S.categories.filter(c=>c.id!=='transfer'&&!c.isIncome).map(c=>`<option value="${c.id}"${item&&c.id===item.categoryId?' selected':''}>${c.emoji} ${c.name}</option>`).join('');
+  const catOpts=S.categories.filter(c=>!INTERNAL_CATS.has(c.id)&&!c.isIncome).map(c=>`<option value="${c.id}"${item&&c.id===item.categoryId?' selected':''}>${c.emoji} ${c.name}</option>`).join('');
   const curCycle=item?item.cycle:'monthly';
   const curDay=item?item.dayOfMonth||1:1;
   const curMonth=item?item.billingMonth||1:1;
@@ -2114,48 +3678,128 @@ function saveFixedAmounts() {
 
 function markSelectedPaid() {
   const cm=todayStr().slice(0,7);
-  const paidItems=[];
+  const toProcess=[];
+  const skipped=[];
   fixedSelectedIds.forEach(id=>{
     const item=S.fixedExpenses.find(f=>f.id===id);
     if(!item)return;
-    paidItems.push(item);
-    item.lastPaidDate=cm;
-    if(item.amount&&parseFloat(item.amount)>0){
-      const txId=uid();
-      item.paidTxId=txId;
-      S.transactions.unshift({
-        id:txId,date:todayStr(),time:timeStr(),type:'expense',
-        categoryId:item.categoryId||'other',amount:parseFloat(item.amount),
-        bankId:item.bankId,description:item.name,item:'Fixed Expense',raw:item.name
-      });
-    } else {
-      item.paidTxId=null;
-    }
+    if(item.lastPaidDate===cm){ skipped.push(item); return; } // already paid this month
+    toProcess.push(item);
   });
-  if(paidItems.length===0){toast('No items selected');return;}
+  if(toProcess.length===0){
+    if(skipped.length>0){ toast(skipped.length+' already paid this month'); fixedSelectedIds.clear(); renderFixed(); }
+    else toast('No items selected');
+    return;
+  }
   fixedSelectedIds.clear();
-  save();
   renderFixed();
-  updateTodayAmt();
-  // Chat bubble summary
-  const total=paidItems.reduce((a,i)=>a+(parseFloat(i.amount)||0),0);
-  const lines=paidItems.map(i=>{
-    const bank=bankById(i.bankId);
-    return `<div style="display:flex;justify-content:space-between;gap:12px;padding:3px 0"><span>${i.emoji} ${i.name}${bank?' · '+bank.name:''}</span><span style="font-weight:600">RM ${(parseFloat(i.amount)||0).toFixed(2)}</span></div>`;
-  }).join('');
+  // Switch to chat so any questions are visible
   switchTab('chat');
   const welcome=document.querySelector('.chat-welcome');
   if(welcome)welcome.remove();
+  // Process items one at a time, asking for missing amount/bank before recording
+  const recorded=[];
+  processFixedQueue(toProcess, 0, recorded, cm);
+}
+
+// Walk the selected fixed items; for each, ensure amount + bank, asking via chat if missing.
+function processFixedQueue(queue, idx, recorded, cm){
+  if(idx>=queue.length){
+    finishFixedQueue(recorded);
+    return;
+  }
+  const item=queue[idx];
+  const next=()=>processFixedQueue(queue, idx+1, recorded, cm);
+  // 1. Amount missing → ask
+  if(!(item.amount&&parseFloat(item.amount)>0)){
+    askFixedAmount(item, ()=>processFixedQueue(queue, idx, recorded, cm)); // re-run same item once amount set
+    return;
+  }
+  // 2. Bank missing → ask which account paid
+  if(!item.bankId || !bankById(item.bankId)){
+    askFixedBank(item, ()=>processFixedQueue(queue, idx, recorded, cm)); // re-run same item once bank set
+    return;
+  }
+  // 3. All good → record the expense
+  item.lastPaidDate=cm;
+  const txId=uid();
+  item.paidTxId=txId;
+  S.transactions.unshift({
+    id:txId,date:todayStr(),time:timeStr(),type:'expense',
+    categoryId:item.categoryId||'other',amount:parseFloat(item.amount),
+    bankId:item.bankId,description:item.name,item:'Fixed Expense',raw:item.name
+  });
+  recorded.push(item);
+  save();
+  next();
+}
+
+function askFixedAmount(item, done){
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  bubble.innerHTML=`<div class="bubble-question">${item.emoji} ${item.name} — how much? (${curSym()})
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <input class="field q-typein" id="fx-amt" type="number" inputmode="decimal" placeholder="0.00" step="0.01" style="flex:1;font-size:13px">
+      <button class="btn btn-primary" id="fx-amt-ok" style="padding:8px 16px">OK</button>
+    </div></div>`;
+  const inp=bubble.querySelector('#fx-amt');
+  const submit=()=>{
+    const v=parseFloat(inp.value);
+    if(isNaN(v)||v<=0){ inp.focus(); return; }
+    item.amount=v; save();
+    bubble.remove();
+    done();
+  };
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter') submit(); });
+  bubble.querySelector('#fx-amt-ok').addEventListener('click',submit);
+  msgs.appendChild(bubble);
+  setTimeout(()=>inp.focus(),50);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function askFixedBank(item, done){
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  // Offer all accounts that money can leave from: banks, e-wallets, cash, credit cards, installments
+  const opts=S.banks.map(b=>`<div class="q-opt" data-bank="${b.id}">${b.emoji} ${b.name}</div>`).join('');
+  bubble.innerHTML=`<div class="bubble-question">${item.emoji} ${item.name} (${curSym()} ${(parseFloat(item.amount)||0).toFixed(2)}) — which account / wallet / card paid?<div class="q-opts">${opts}</div>
+    <div style="font-size:10px;color:var(--text-dim);margin-top:6px">Tip: set a default account in the Fixed tab's edit to skip this next time.</div></div>`;
+  bubble.querySelectorAll('.q-opt').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      item.bankId=btn.dataset.bank;
+      save();
+      bubble.remove();
+      done();
+    });
+  });
+  msgs.appendChild(bubble);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+function finishFixedQueue(recorded){
+  save();
+  renderFixed();
+  updateTodayAmt();
+  if (document.querySelector('#tab-savings.active')) renderSavings();
+  if (document.querySelector('#tab-stats.active')) renderStats();
+  if(recorded.length===0) return;
+  const total=recorded.reduce((a,i)=>a+(parseFloat(i.amount)||0),0);
+  const lines=recorded.map(i=>{
+    const bank=bankById(i.bankId);
+    return `<div style="display:flex;justify-content:space-between;gap:12px;padding:3px 0"><span>${i.emoji} ${i.name}${bank?' · '+bank.name:''}</span><span style="font-weight:600">${curSym()} ${(parseFloat(i.amount)||0).toFixed(2)}</span></div>`;
+  }).join('');
   const msgs=document.getElementById('chat-messages');
   const bubble=document.createElement('div');
   bubble.className='bubble';
   bubble.innerHTML=`
     <div class="bubble-category">📌 Fixed Expenses Recorded</div>
-    <div style="font-size:13px;color:var(--text);margin-bottom:8px">${paidItems.length} item${paidItems.length>1?'s':''} marked as paid:</div>
+    <div style="font-size:13px;color:var(--text);margin-bottom:8px">${recorded.length} item${recorded.length>1?'s':''} marked as paid:</div>
     <div style="font-size:13px;border-top:1px solid var(--border);padding-top:8px">${lines}</div>
     <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
       <span style="font-size:12px;color:var(--text-muted)">Total fixed expenses</span>
-      <span style="font-size:14px;font-weight:700;color:var(--accent)">RM ${total.toFixed(2)}</span>
+      <span style="font-size:14px;font-weight:700;color:var(--accent)">${curSym()} ${total.toFixed(2)}</span>
     </div>
   `;
   msgs.appendChild(bubble);
@@ -2235,8 +3879,83 @@ function computeBalance(bankId) {
     if (tx.type==='income'&&tx.bankId===bankId) balance+=(tx.amount||0);
     if (tx.type==='transfer'&&tx.bankId===bankId) balance-=(tx.amount||0);
     if (tx.type==='transfer'&&tx.toBankId===bankId) balance+=(tx.amount||0);
+    // Savings transfer: deduct from source, add to destination
+    if (tx.type==='savings'&&tx.bankId===bankId) balance-=(tx.amount||0);
+    if (tx.type==='savings'&&tx.toBankId===bankId) balance+=(tx.amount||0);
   }
   return balance;
+}
+
+// Compute a provider's financial summary (installments + one-time items under it)
+function providerSummary(providerId){
+  const plans=(S.installments||[]).filter(p=>p.providerId===providerId);
+  const installmentItems=plans.filter(p=>p.months>1);
+  const oneTimeItems=plans.filter(p=>p.months<=1);
+  // Total outstanding = sum of remaining for unpaid items
+  const totalOutstanding=plans.filter(p=>!p.paid).reduce((a,p)=>a+p.remainingAmount,0);
+  // This month due: installments → monthly amount; one-time → full remaining; only unpaid
+  const thisMonthDue=plans.filter(p=>!p.paid).reduce((a,p)=>{
+    if(p.months>1) return a+Math.min(p.monthlyAmount,p.remainingAmount);
+    return a+p.remainingAmount;
+  },0);
+  // Payment history (merged across all plans, newest first)
+  const history=[];
+  plans.forEach(p=>{ (p.paymentHistory||[]).forEach(h=>history.push({...h,item:p.itemName})); });
+  history.sort((a,b)=>b.date.localeCompare(a.date));
+  return {plans, installmentItems, oneTimeItems, totalOutstanding, thisMonthDue, history};
+}
+
+// Collapsed provider card (Credit Card / Installment) — name only, expands to detail
+function providerCardHtml(bank){
+  const s=providerSummary(bank.id);
+  const monthName=new Date().toLocaleDateString('en-MY',{month:'short'});
+  // Installments subsection (months>1, not paid)
+  const instRows=s.installmentItems.filter(p=>!p.paid).map(p=>`
+    <div class="sav-tx"><div class="sav-tx-row">
+      <div class="sav-tx-desc">${p.itemName} · ${curSym()} ${p.monthlyAmount.toFixed(2)}/mo</div>
+      <div class="sav-tx-amount neg">${curSym()} ${p.remainingAmount.toFixed(2)}</div>
+    </div><div class="sav-tx-date">${p.remainingMonths} months left</div></div>`).join('');
+  // One-time subsection (months<=1, not paid)
+  const oneRows=s.oneTimeItems.filter(p=>!p.paid).map(p=>`
+    <div class="sav-tx"><div class="sav-tx-row">
+      <div class="sav-tx-desc">${p.itemName}</div>
+      <div class="sav-tx-amount neg">${curSym()} ${p.remainingAmount.toFixed(2)}</div>
+    </div><div class="sav-tx-date">one-time</div></div>`).join('');
+  // Payment history
+  const histRows=s.history.slice(0,12).map(h=>`
+    <div class="sav-tx"><div class="sav-tx-row">
+      <div class="sav-tx-desc">${h.item}</div>
+      <div class="sav-tx-amount pos">${curSym()} ${h.amount.toFixed(2)}</div>
+    </div><div class="sav-tx-date">${fmtDate(h.date)}</div></div>`).join('');
+
+  return `
+    <div class="savings-card" data-provider="${bank.id}">
+      <div class="sav-card-top">
+        <div class="sav-icon">${bank.emoji}</div>
+        <div class="sav-name" style="flex:1">${bank.name}</div>
+        <div class="sav-actions">
+          <button class="btn-icon sav-del-btn" data-bank="${bank.id}" title="Delete" style="font-size:13px;font-family:var(--font);font-weight:400;color:var(--text-dim)">×</button>
+          <div class="sav-chevron" style="font-size:12px;color:var(--text-dim);margin-left:2px">▾</div>
+        </div>
+      </div>
+      <div class="savings-detail">
+        <div style="padding:10px 14px 4px">
+          <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📊 Summary</div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0">
+            <span style="color:var(--text-muted)">Total Outstanding</span>
+            <span style="font-family:var(--mono);color:var(--danger);font-weight:600">${curSym()} ${s.totalOutstanding.toFixed(2)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0">
+            <span style="color:var(--text-muted)">This Month Due</span>
+            <span style="font-family:var(--mono);color:var(--accent);font-weight:600">${curSym()} ${s.thisMonthDue.toFixed(2)}</span>
+          </div>
+        </div>
+        ${instRows?`<div style="padding:8px 14px 2px"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">📦 Installments</div></div>${instRows}`:''}
+        ${oneRows?`<div style="padding:8px 14px 2px"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">💸 One-time (unpaid)</div></div>${oneRows}`:''}
+        ${histRows?`<div style="padding:8px 14px 2px"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">📜 Payment History</div></div>${histRows}`:''}
+        ${(!instRows&&!oneRows&&!histRows)?`<div style="padding:10px 14px;font-size:11px;color:var(--text-dim)">No items yet. Add via chat, e.g. "${bank.aliases?bank.aliases[0]:bank.name.toLowerCase()} - iphone 1800/12"</div>`:''}
+      </div>
+    </div>`;
 }
 
 function renderSavings() {
@@ -2246,26 +3965,25 @@ function renderSavings() {
     el.innerHTML=`<div class="empty-state"><div class="es-icon">🏦</div><div class="es-text">No accounts yet</div></div>`;
     return;
   }
-  let html='';
-  for (let idx=0;idx<S.banks.length;idx++) {
-    const bank=S.banks[idx];
+  // Build one card's HTML
+  function cardHtml(bank, idx){
     const balance=computeBalance(bank.id);
     const balClass=balance>0?'positive':balance<0?'negative':'zero';
-    const txs=S.transactions.filter(t=>t.bankId===bank.id||(t.type==='transfer'&&t.toBankId===bank.id)).slice(0,5);
+    const txs=S.transactions.filter(t=>t.bankId===bank.id||((t.type==='transfer'||t.type==='savings')&&t.toBankId===bank.id)).slice(0,5);
     const txHtml=txs.length===0
       ?`<div style="padding:10px 14px;font-size:11px;color:var(--text-dim)">No transactions yet</div>`
       :txs.map(tx=>{
-        const isCredit=(tx.type==='income')||(tx.type==='transfer'&&tx.toBankId===bank.id);
+        const isCredit=(tx.type==='income')||((tx.type==='transfer'||tx.type==='savings')&&tx.toBankId===bank.id);
         const desc=tx.description||(tx.raw||'').slice(0,30);
-        return `<div class="sav-tx"><div class="sav-tx-row"><div class="sav-tx-desc">${desc}</div><div class="sav-tx-amount ${isCredit?'pos':'neg'}">${isCredit?'+':'-'}RM ${(tx.amount||0).toFixed(2)}</div></div><div class="sav-tx-date">${tx.date} ${tx.time||''}</div></div>`;
+        return `<div class="sav-tx"><div class="sav-tx-row"><div class="sav-tx-desc">${desc}</div><div class="sav-tx-amount ${isCredit?'pos':'neg'}">${isCredit?'+':'-'}${curSym()} ${(tx.amount||0).toFixed(2)}</div></div><div class="sav-tx-date">${tx.date} ${tx.time||''}</div></div>`;
       }).join('');
-    html+=`
+    return `
       <div class="savings-card" data-idx="${idx}" data-bank="${bank.id}">
         <div class="sav-card-top">
           <div class="drag-handle" title="Drag to reorder">⠿</div>
           <div class="sav-icon">${bank.emoji}</div>
           <div class="sav-name" style="flex:1">${bank.name}</div>
-          <div class="sav-balance ${balClass}" style="margin-right:8px">RM ${Math.abs(balance).toFixed(2)}</div>
+          <div class="sav-balance ${balClass}" style="margin-right:8px">${balance<0?'− ':''}${curSym()} ${Math.abs(balance).toFixed(2)}</div>
           <div class="sav-actions">
             <button class="btn-icon sav-edit-btn" data-bank="${bank.id}" title="Edit" style="font-size:12px">✏️</button>
             <button class="btn-icon sav-del-btn" data-bank="${bank.id}" title="Delete" style="font-size:13px;font-family:var(--font);font-weight:400;color:var(--text-dim)">×</button>
@@ -2285,16 +4003,89 @@ function renderSavings() {
         </div>
       </div>`;
   }
+
+  // Section definitions: title + which types belong to it
+  const SECTIONS=[
+    {title:'Account Balances', types:['bank','cash']},
+    {title:'E-Wallet', types:['ewallet']},
+    {title:'Credit Card & Installment', types:['creditcard','instalment']},
+  ];
+  let html='';
+  // ── Recover orphaned installments: if a plan's provider bank is missing, recreate it ──
+  (S.installments||[]).forEach(p=>{
+    if(p.providerId && !S.banks.find(b=>b.id===p.providerId)){
+      S.banks.push({
+        id:p.providerId, emoji:'⏳', name:p.providerName||'Installment',
+        aliases:[(p.providerName||'installment').toLowerCase()], type:'instalment'
+      });
+    }
+  });
+  S.banks.forEach((b,i)=>{ b._idx=i; }); // remember original index for drag
+
+  for (const sec of SECTIONS) {
+    const isProviderSec = (sec.title==='Credit Card & Installment');
+    const inSec=S.banks.filter(b=>sec.types.includes(b.type||'bank'));
+    if(isProviderSec){
+      // Merged provider cards: one collapsed line per provider (no numbers), expands to detail
+      if(inSec.length===0) continue;
+      html+=`<div class="sav-section-title">${sec.title}</div>`;
+      html+=inSec.map(b=>providerCardHtml(b)).join('');
+    } else {
+      if (inSec.length===0) continue;
+      html+=`<div class="sav-section-title">${sec.title}</div>`;
+      html+=inSec.map(b=>cardHtml(b,b._idx)).join('');
+    }
+  }
+  // Any bank with an unrecognized type → put under Account Balances fallback
+  const known=new Set(['bank','cash','creditcard','ewallet','instalment']);
+  const others=S.banks.filter(b=>!known.has(b.type||'bank'));
+  if(others.length){
+    html+=`<div class="sav-section-title">Other</div>`;
+    html+=others.map(b=>cardHtml(b,b._idx)).join('');
+  }
   el.innerHTML=html;
+
+  // Provider (Credit Card / Installment) card expand/collapse
+  el.querySelectorAll('.savings-card[data-provider]').forEach(card=>{
+    const top=card.querySelector('.sav-card-top');
+    if(!top) return;
+    top.addEventListener('click',e=>{
+      if(e.target.closest('button')) return;
+      const detail=card.querySelector('.savings-detail');
+      const chv=card.querySelector('.sav-chevron');
+      if(!detail) return;
+      const open=detail.classList.toggle('open');
+      if(chv) chv.classList.toggle('open',open);
+    });
+    // delete button on provider card
+    const delBtn=card.querySelector('.sav-del-btn');
+    if(delBtn){
+      delBtn.addEventListener('click',e=>{
+        e.stopPropagation();
+        const bid=delBtn.dataset.bank;
+        const bank=S.banks.find(b=>b.id===bid);
+        if(!bank)return;
+        showConfirmModal(`Delete "${bank.name}"? Its installment items will also be removed.`,()=>{
+          if(DEFAULT_BANKS.some(d=>d.id===bid)){ if(!S.deletedBankIds)S.deletedBankIds=[]; if(!S.deletedBankIds.includes(bid))S.deletedBankIds.push(bid); }
+          S.banks=S.banks.filter(b=>b.id!==bid);
+          S.installments=(S.installments||[]).filter(p=>p.providerId!==bid);
+          save(); renderSavings();
+        });
+      });
+    }
+  });
 
   el.querySelectorAll('.sav-card-top').forEach(top=>{
     top.addEventListener('click',e=>{
       if (e.target.closest('button')||e.target.closest('.drag-handle')||e.target.closest('.sav-actions')) return;
-      const bankId=top.closest('.savings-card').dataset.bank;
+      const card=top.closest('.savings-card');
+      if(!card || card.dataset.inst) return; // installment cards handled separately
+      const bankId=card.dataset.bank;
       const detail=document.getElementById('sav-detail-'+bankId);
       const chv=document.getElementById('sav-chv-'+bankId);
+      if(!detail) return;
       const open=detail.classList.toggle('open');
-      chv.classList.toggle('open',open);
+      if(chv) chv.classList.toggle('open',open);
     });
   });
   el.querySelectorAll('.sav-start-input').forEach(inp=>{
@@ -2355,9 +4146,16 @@ function renderSavings() {
   });
   if(typeof savReorder!=='undefined'&&savReorder) el.classList.add('reorder-active');
   initTouchDrag(el, '.savings-card', '.drag-handle', (from,to)=>{
-    const arr=S.banks;
-    const item=arr.splice(from,1)[0];
-    arr.splice(to,0,item);
+    // Map DOM positions (section-grouped) to actual bank ids
+    const cards=[...el.querySelectorAll('.savings-card')];
+    const fromId=cards[from]?.dataset.bank;
+    const toId=cards[to]?.dataset.bank;
+    if(!fromId||!toId)return;
+    const fromIdx=S.banks.findIndex(b=>b.id===fromId);
+    const toIdx=S.banks.findIndex(b=>b.id===toId);
+    if(fromIdx<0||toIdx<0)return;
+    const item=S.banks.splice(fromIdx,1)[0];
+    S.banks.splice(toIdx,0,item);
     save(); renderSavings();
   });
 }
@@ -2394,7 +4192,7 @@ function filterTx(range) {
 const EYE_OPEN_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 const EYE_OFF_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7c1.6 0 3 .4 4.2 1M22 12s-3 7-10 7c-1.6 0-3-.4-4.2-1"/><line x1="3" y1="3" x2="21" y2="21"/></svg>';
 
-function maskAmt(str){ return S.hideAmounts ? 'RM ****' : str; }
+function maskAmt(str){ return S.hideAmounts ? curSym()+' ****' : str; }
 
 function updateEyeBtn(){
   const btn=document.getElementById('stats-eye-btn');
@@ -2405,8 +4203,9 @@ function renderStats() {
   const txs=filterTx(statsRange);
   const expenses=txs.filter(t=>t.type==='expense');
   const income=txs.filter(t=>t.type==='income');
-  const totalExp=expenses.reduce((a,t)=>a+(t.amount||0),0);
-  const totalInc=income.reduce((a,t)=>a+(t.amount||0),0);
+  // Total expense = net of reimbursements; reimbursement income is netted against its linked expense
+  const totalExp=expenses.reduce((a,t)=>a+((t.amount||0)-(t.reimbursedAmount||0)),0);
+  const totalInc=income.filter(t=>t.categoryId!=='reimbursement').reduce((a,t)=>a+(t.amount||0),0);
   const balance=totalInc-totalExp;
 
   // Card 3: Net Balance — with optional bank filter (▾)
@@ -2414,26 +4213,63 @@ function renderStats() {
   const manualSavingsTotal=Object.values(S.savingsStarting).reduce((a,v)=>a+(v||0),0);
   const selBank=statsBalanceBankId?bankById(statsBalanceBankId):null;
 
-  // When bank selected, compute filtered net balance for that bank
-  let netLabel='📊 Net Balance', netAmt='', netClass='', netSub='income − expenses';
+  // Net Balance shows REAL money: per bank = its actual balance (income/transfer/savings − expenses);
+  // all banks combined = sum of every account's real balance.
+  let netLabel='📊 Net Balance', netAmt='', netClass='', netSub='all account balances';
   if (selBank) {
-    const {from,to}=getDateRange(statsRange);
-    const bTxs=S.transactions.filter(t=>t.date>=from&&t.date<=to&&t.bankId===selBank.id);
-    const bInc=bTxs.filter(t=>t.type==='income').reduce((a,t)=>a+(t.amount||0),0);
-    const bExp=bTxs.filter(t=>t.type==='expense').reduce((a,t)=>a+(t.amount||0),0);
-    const bNet=bInc-bExp;
-    netLabel=`📊 ${selBank.emoji} Net`;
-    netAmt=`${bNet>=0?'+':'−'}RM ${Math.abs(bNet).toFixed(2)}`;
-    netClass=bNet>=0?'income':'expense';
+    const bBal=computeBalance(selBank.id);
+    netLabel=`📊 ${selBank.emoji} Balance`;
+    netAmt=`${bBal>=0?'+':'−'}${curSym()} ${Math.abs(bBal).toFixed(2)}`;
+    netClass=bBal>=0?'income':'expense';
     netSub=selBank.name;
   } else {
-    netAmt=`${balance>=0?'+':'−'}RM ${Math.abs(balance).toFixed(2)}`;
-    netClass=balance>=0?'income':'expense';
+    // Sum of all account real balances (banks, e-wallets, cash, savings, installments)
+    let allBal=0;
+    for(const b of S.banks){ allBal+=computeBalance(b.id); }
+    netAmt=`${allBal>=0?'+':'−'}${curSym()} ${Math.abs(allBal).toFixed(2)}`;
+    netClass=allBal>=0?'income':'expense';
+  }
+
+  // ── Savings card: show savings-transfer totals if any exist, else starting balances ──
+  const savingsBankIds=getSavingsBankIds();
+  const hasSavingsFlows=savingsBankIds.length>0;
+  let savLabel='💰 Savings', savAmt='', savSub='starting balances', savHasPicker=false;
+  if (hasSavingsFlows) {
+    savHasPicker=true;
+    if (statsSavingsBankId && savingsBankIds.includes(statsSavingsBankId)) {
+      const sb=bankById(statsSavingsBankId);
+      savLabel=`💰 ${sb?sb.emoji:''} Saved`;
+      savAmt=curSym()+' '+computeSavingsTotal(statsSavingsBankId).toFixed(2);
+      savSub=sb?('into '+sb.name):'';
+    } else {
+      savAmt=curSym()+' '+computeSavingsTotal(null).toFixed(2);
+      savSub='total saved';
+    }
+  } else {
+    savAmt=curSym()+' '+manualSavingsTotal.toFixed(2);
+  }
+
+  // Income card — optional filter by bank/ewallet/installment (not CC)
+  const incomeFilterBanks=S.banks.filter(b=>b.type==='bank'||!b.type);
+  let incLabel='💰 Income', incAmt=curSym()+' '+totalInc.toFixed(2), incSub='';
+  if(statsIncomeBankId){
+    const ib=bankById(statsIncomeBankId);
+    const {from,to}=getDateRange(statsRange);
+    const filteredInc=S.transactions
+      .filter(t=>t.type==='income'&&t.categoryId!=='reimbursement'&&t.bankId===statsIncomeBankId&&t.date>=from&&t.date<=to)
+      .reduce((a,t)=>a+(t.amount||0),0);
+    incLabel=`💰 ${ib?ib.emoji:''} Income`;
+    incAmt=curSym()+' '+filteredInc.toFixed(2);
+    incSub=ib?ib.name:'';
   }
 
   document.getElementById('stats-cards').innerHTML=`
-    <div class="stats-card"><div class="sc-label">💰 Income</div><div class="sc-amount income">${maskAmt('RM '+totalInc.toFixed(2))}</div></div>
-    <div class="stats-card"><div class="sc-label">💸 Expenses</div><div class="sc-amount expense">${maskAmt('RM '+totalExp.toFixed(2))}</div></div>
+    <div class="stats-card">
+      <div class="sc-label"><span>${incLabel}</span><button class="sc-pick-btn" id="stats-income-pick">▾</button></div>
+      <div class="sc-amount income">${maskAmt(incAmt)}</div>
+      ${incSub?`<div style="font-size:9px;color:var(--text-dim);margin-top:3px">${incSub}</div>`:''}
+    </div>
+    <div class="stats-card"><div class="sc-label">💸 Expenses</div><div class="sc-amount expense">${maskAmt(curSym()+' '+totalExp.toFixed(2))}</div></div>
     <div class="stats-card">
       <div class="sc-label">
         <span>${netLabel}</span>
@@ -2443,12 +4279,33 @@ function renderStats() {
       <div style="font-size:9px;color:var(--text-dim);margin-top:3px">${netSub}</div>
     </div>
     <div class="stats-card">
-      <div class="sc-label">💰 Savings</div>
-      <div class="sc-amount accent">${maskAmt('RM '+manualSavingsTotal.toFixed(2))}</div>
-      <div style="font-size:9px;color:var(--text-dim);margin-top:3px">starting balances</div>
+      <div class="sc-label">
+        <span>${savLabel}</span>
+        ${savHasPicker?`<button class="sc-pick-btn" id="stats-savings-pick">▾</button>`:''}
+      </div>
+      <div class="sc-amount accent">${maskAmt(savAmt)}</div>
+      <div style="font-size:9px;color:var(--text-dim);margin-top:3px">${savSub}</div>
     </div>
   `;
   updateEyeBtn();
+
+  // Income card bank picker
+  document.getElementById('stats-income-pick').addEventListener('click',()=>{
+    const rows=`<div class="cat-pick-row${!statsIncomeBankId?' sel':''}" id="ipick-none">
+      <span style="font-size:18px">💰</span><span style="font-size:14px;flex:1">All income</span>
+      ${!statsIncomeBankId?'<span style="color:var(--accent)">✓</span>':''}
+    </div>`+incomeFilterBanks.map(b=>`
+      <div class="cat-pick-row${statsIncomeBankId===b.id?' sel':''}" data-incid="${b.id}">
+        <span style="font-size:18px">${b.emoji}</span>
+        <span style="font-size:14px;flex:1">${b.name}</span>
+        ${statsIncomeBankId===b.id?'<span style="color:var(--accent);margin-left:6px">✓</span>':''}
+      </div>`).join('');
+    showModal(`<div class="modal-title">Filter Income by Account</div><div style="font-size:12px;color:var(--text-dim);padding:0 0 10px">Banks, e-wallets & installments</div><div style="max-height:60vh;overflow-y:auto">${rows}</div>`);
+    document.getElementById('ipick-none').addEventListener('click',()=>{ statsIncomeBankId=null; closeModal(); renderStats(); });
+    document.querySelectorAll('.cat-pick-row[data-incid]').forEach(row=>{
+      row.addEventListener('click',()=>{ statsIncomeBankId=row.dataset.incid; closeModal(); renderStats(); });
+    });
+  });
   document.getElementById('stats-bank-pick').addEventListener('click',()=>{
     const rows=`<div class="cat-pick-row${!statsBalanceBankId?' sel':''}" id="spick-none">
       <span style="font-size:18px">📊</span><span style="font-size:14px;flex:1">All banks (overall)</span>
@@ -2457,7 +4314,7 @@ function renderStats() {
       <div class="cat-pick-row${statsBalanceBankId===b.id?' sel':''}" data-id="${b.id}">
         <span style="font-size:18px">${b.emoji}</span>
         <span style="font-size:14px;flex:1">${b.name}</span>
-        <span style="font-size:12px;color:var(--text-dim);font-family:var(--mono)">bal RM ${Math.abs(computeBalance(b.id)).toFixed(2)}</span>
+        <span style="font-size:12px;color:var(--text-dim);font-family:var(--mono)">bal ${curSym()} ${Math.abs(computeBalance(b.id)).toFixed(2)}</span>
         ${statsBalanceBankId===b.id?'<span style="color:var(--accent);margin-left:6px">✓</span>':''}
       </div>`).join('');
     showModal(`<div class="modal-title">Filter Net Balance by Bank</div><div style="font-size:12px;color:var(--text-dim);padding:0 0 10px">Select a bank to see its net income − expenses</div><div style="max-height:60vh;overflow-y:auto">${rows}</div>`);
@@ -2467,13 +4324,39 @@ function renderStats() {
     });
   });
 
-  // Pie chart
+  // Savings card dropdown — filter by savings-destination bank (learned from history)
+  const savPickBtn=document.getElementById('stats-savings-pick');
+  if(savPickBtn){
+    savPickBtn.addEventListener('click',()=>{
+      const savIds=getSavingsBankIds();
+      const rows=`<div class="cat-pick-row${!statsSavingsBankId?' sel':''}" id="savpick-all">
+        <span style="font-size:18px">💰</span><span style="font-size:14px;flex:1">All savings</span>
+        ${!statsSavingsBankId?'<span style="color:var(--accent)">✓</span>':''}
+      </div>`+savIds.map(id=>{
+        const b=bankById(id); if(!b)return '';
+        return `<div class="cat-pick-row${statsSavingsBankId===id?' sel':''}" data-savid="${id}">
+          <span style="font-size:18px">${b.emoji}</span>
+          <span style="font-size:14px;flex:1">${b.name}</span>
+          <span style="font-size:12px;color:var(--text-dim);font-family:var(--mono)">${curSym()} ${computeSavingsTotal(id).toFixed(2)}</span>
+          ${statsSavingsBankId===id?'<span style="color:var(--accent);margin-left:6px">✓</span>':''}
+        </div>`;
+      }).join('');
+      showModal(`<div class="modal-title">Savings Accounts</div><div style="font-size:12px;color:var(--text-dim);padding:0 0 10px">Accounts with savings role</div><div style="max-height:60vh;overflow-y:auto">${rows}</div>`);
+      document.getElementById('savpick-all').addEventListener('click',()=>{ statsSavingsBankId=null; closeModal(); renderStats(); });
+      document.querySelectorAll('.cat-pick-row[data-savid]').forEach(row=>{
+        row.addEventListener('click',()=>{ statsSavingsBankId=row.dataset.savid; closeModal(); renderStats(); });
+      });
+    });
+  }
+
+  // Pie chart — uses NET expense (original minus any reimbursements)
   const catTotals={};
   for (const tx of expenses) {
     const cid=tx.categoryId||'other';
-    catTotals[cid]=(catTotals[cid]||0)+(tx.amount||0);
+    const net=(tx.amount||0)-(tx.reimbursedAmount||0);
+    catTotals[cid]=(catTotals[cid]||0)+net;
   }
-  const sortedCats=Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
+  const sortedCats=Object.entries(catTotals).filter(([,v])=>v>0.005).sort((a,b)=>b[1]-a[1]);
   const pieLabels=sortedCats.map(([id])=>{ const c=catById(id); return c?c.emoji+' '+c.name:'Other'; });
   const pieData=sortedCats.map(([,v])=>v);
   const pieColors=sortedCats.map((_,i)=>CHART_COLORS[i%CHART_COLORS.length]);
@@ -2519,7 +4402,7 @@ function renderStats() {
       <div class="cat-legend-dot" style="background:${pieColors[i]}"></div>
       <div class="cat-legend-name">${c?c.emoji+' '+c.name:'Other'}</div>
       <div class="cat-legend-pct">${pct}%</div>
-      <div class="cat-legend-amt">RM ${amt.toFixed(2)}</div>
+      <div class="cat-legend-amt">${curSym()} ${amt.toFixed(2)}</div>
     </div>`;
   }).join('');
 
@@ -2532,7 +4415,7 @@ function renderStats() {
     const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
     months.push(d.toLocaleDateString('en-MY',{month:'short'}));
     const mExp=S.transactions.filter(t=>t.type==='expense'&&t.date.startsWith(key)).reduce((a,t)=>a+(t.amount||0),0);
-    const mInc=S.transactions.filter(t=>t.type==='income'&&t.date.startsWith(key)).reduce((a,t)=>a+(t.amount||0),0);
+    const mInc=S.transactions.filter(t=>t.type==='income'&&t.categoryId!=='reimbursement'&&t.date.startsWith(key)).reduce((a,t)=>a+(t.amount||0),0);
     monthlyExp.push(parseFloat(mExp.toFixed(2)));
     monthlyInc.push(parseFloat(mInc.toFixed(2)));
   }
@@ -2637,15 +4520,55 @@ function fallbackCopy(ta,text) {
 // ═══════════════════════════════════════
 
 function renderSettings() {
+  renderCurrencySelect();
   renderSettingsCats();
   renderSettingsBanks();
   renderSettingsLearned();
   renderBackupReminder();
 }
 
+function renderCurrencySelect() {
+  const sel=document.getElementById('currency-select');
+  if(!sel)return;
+  sel.innerHTML=Object.keys(CURRENCIES).map(code=>{
+    const c=CURRENCIES[code];
+    return `<option value="${code}"${code===S.currency?' selected':''}>${c.flag} ${code} — ${c.name} (${c.symbol})</option>`;
+  }).join('');
+  sel.onchange=()=>{
+    const target=sel.value;
+    if(target===S.currency){ return; }
+    const c=CURRENCIES[target];
+    showConfirmModal(
+      `Switch to ${c.flag} ${target}? The app will show only ${target} banks and records. Your ${S.currency} data stays saved separately.`,
+      ()=>switchCurrency(target),
+      ()=>{ sel.value=S.currency; }, // on cancel, revert dropdown
+      'Switch'
+    );
+  };
+}
+
+function switchCurrency(target){
+  // Save current currency data first
+  save();
+  // Switch active currency pointer and load that currency's dataset
+  localStorage.setItem(SK_CUR, target);
+  load(); // load() reads activeCurrency() and seeds defaults if empty
+  // Re-render everything
+  updateTodayAmt();
+  renderSettings();
+  if(document.querySelector('#tab-chat.active')) {} // chat stays
+  if(document.querySelector('#tab-records.active')) renderRecords();
+  if(document.querySelector('#tab-fixed.active')) renderFixed();
+  if(document.querySelector('#tab-savings.active')) renderSavings();
+  if(document.querySelector('#tab-stats.active')) renderStats();
+  toast(`Switched to ${CURRENCIES[target].flag} ${target}`);
+}
+
 function renderSettingsCats() {
   const el=document.getElementById('settings-cats');
-  el.innerHTML=S.categories.map((cat,idx)=>`
+
+  function catCardHtml(cat, idx){
+    return `
     <div class="cat-card" data-id="${cat.id}" data-idx="${idx}">
       <div class="cat-card-header">
         <div class="drag-handle" style="padding:0 8px 0 2px;font-size:16px;color:var(--text-dim);cursor:grab;flex-shrink:0">⠿</div>
@@ -2656,9 +4579,32 @@ function renderSettingsCats() {
           <button class="btn-icon cat-del-btn" data-id="${cat.id}" title="Delete" style="color:var(--text-dim);font-size:14px;font-family:var(--font);font-weight:500">×</button>
         </div>
       </div>
-      <div class="cat-kws">${(cat.keywords||[]).slice(0,8).map(kw=>`<span class="kw-chip">${kw}</span>`).join('')}${cat.keywords&&cat.keywords.length>8?`<span class="kw-chip">+${cat.keywords.length-8}</span>`:''}</div>
-    </div>
-  `).join('');
+    </div>`;
+  }
+
+  const incomeCats = S.categories.filter(c=>c.isIncome);
+  const expenseCats = S.categories.filter(c=>!c.isIncome && !INTERNAL_CATS.has(c.id));
+
+  el.innerHTML =
+    `<div class="settings-sub-hdr" id="sub-hdr-income" data-target="sub-body-income">
+      💰 Income <span class="sub-chevron">▾</span></div>
+    <div id="sub-body-income" style="display:none">${incomeCats.map((cat) => catCardHtml(cat, S.categories.indexOf(cat))).join('')}</div>` +
+    `<div class="settings-sub-hdr" id="sub-hdr-expense" data-target="sub-body-expense">
+      💸 Expenses <span class="sub-chevron">▾</span></div>
+    <div id="sub-body-expense" style="display:none">${expenseCats.map((cat) => catCardHtml(cat, S.categories.indexOf(cat))).join('')}</div>`;
+
+  // Sub-section collapse toggle
+  el.querySelectorAll('.settings-sub-hdr').forEach(hdr=>{
+    hdr.addEventListener('click',e=>{
+      if(e.target.closest('button')) return;
+      const body=document.getElementById(hdr.dataset.target);
+      const chv=hdr.querySelector('.sub-chevron');
+      if(!body)return;
+      const opening=body.style.display==='none';
+      body.style.display=opening?'':'none';
+      if(chv){ chv.textContent=opening?'▴':'▾'; }
+    });
+  });
 
   el.querySelectorAll('.cat-edit-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
@@ -2677,11 +4623,19 @@ function renderSettingsCats() {
       });
     });
   });
-  // Drag to reorder
+  // Drag to reorder (operates on full S.categories index)
   if(catReorder) el.classList.add('reorder-active');
   initTouchDrag(el, '.cat-card', '.drag-handle', (from,to)=>{
-    const item=S.categories.splice(from,1)[0];
-    S.categories.splice(to,0,item);
+    // map visible positions back to full array positions
+    const cards=[...el.querySelectorAll('.cat-card')];
+    const fromId=cards[from]?.dataset.id;
+    const toId=cards[to]?.dataset.id;
+    if(!fromId||!toId)return;
+    const fromIdx=S.categories.findIndex(c=>c.id===fromId);
+    const toIdx=S.categories.findIndex(c=>c.id===toId);
+    if(fromIdx<0||toIdx<0)return;
+    const item=S.categories.splice(fromIdx,1)[0];
+    S.categories.splice(toIdx,0,item);
     save(); renderSettingsCats();
   });
 }
@@ -2701,6 +4655,13 @@ function showEditCatModal(cat) {
         </div>
       </div>
       <div>
+        <div class="modal-field-label">Type</div>
+        <select class="field" id="ce-type">
+          <option value="expense"${cat&&cat.isIncome?'':' selected'}>💸 Expense</option>
+          <option value="income"${cat&&cat.isIncome?' selected':''}>💰 Income</option>
+        </select>
+      </div>
+      <div>
         <div class="modal-field-label">Keywords (comma-separated)</div>
         <textarea class="field" id="ce-kws" rows="3" style="resize:none">${cat?(cat.keywords||[]).join(', '):''}</textarea>
       </div>
@@ -2714,11 +4675,15 @@ function showEditCatModal(cat) {
     const emoji=document.getElementById('ce-emoji').value.trim()||'🏷️';
     const name=document.getElementById('ce-name').value.trim();
     const kws=document.getElementById('ce-kws').value.split(',').map(k=>k.trim()).filter(Boolean);
+    const isIncome=document.getElementById('ce-type').value==='income';
     if (!name) return;
     if (cat) {
       cat.emoji=emoji; cat.name=name; cat.keywords=kws;
+      if(isIncome) cat.isIncome=true; else delete cat.isIncome;
     } else {
-      S.categories.push({id:uid(),emoji,name,keywords:kws});
+      const nc={id:uid(),emoji,name,keywords:kws};
+      if(isIncome) nc.isIncome=true;
+      S.categories.push(nc);
     }
     save(); closeModal(); renderSettingsCats();
   });
@@ -2727,7 +4692,8 @@ function showEditCatModal(cat) {
 
 function renderSettingsBanks() {
   const el=document.getElementById('settings-banks');
-  el.innerHTML=S.banks.map(bank=>`
+  function bankCardHtml(bank){
+    return `
     <div class="cat-card" data-id="${bank.id}">
       <div class="cat-card-header">
         <div class="cat-card-emoji">${bank.emoji}</div>
@@ -2737,9 +4703,42 @@ function renderSettingsBanks() {
           <button class="btn-icon bank-del-btn" data-id="${bank.id}" style="color:var(--text-dim);font-size:14px;font-family:var(--font);font-weight:500">×</button>
         </div>
       </div>
-      <div class="cat-kws">${(bank.aliases||[]).map(a=>`<span class="kw-chip">${a}</span>`).join('')}</div>
-    </div>
-  `).join('');
+    </div>`;
+  }
+
+  // Group banks into 2 sections; order Banks & E-Wallets as: bank → ewallet → cash
+  const typeOrder={bank:0, ewallet:1, cash:2};
+  const banksCash=S.banks
+    .filter(b=>b.type==='bank'||b.type==='cash'||b.type==='ewallet'||!b.type)
+    .slice()
+    .sort((a,b)=>(typeOrder[a.type||'bank']??0)-(typeOrder[b.type||'bank']??0));
+  const ccInst=S.banks.filter(b=>b.type==='creditcard'||b.type==='instalment');
+
+  let html='';
+  if(banksCash.length){
+    html+=`<div class="settings-sub-hdr" id="sub-hdr-banks" data-target="sub-body-banks">
+      Banks &amp; E-Wallets <span class="sub-chevron">▾</span></div>
+    <div id="sub-body-banks" style="display:none">${banksCash.map(bankCardHtml).join('')}</div>`;
+  }
+  if(ccInst.length){
+    html+=`<div class="settings-sub-hdr" id="sub-hdr-ccInst" data-target="sub-body-ccInst">
+      Credit Cards &amp; Installments <span class="sub-chevron">▾</span></div>
+    <div id="sub-body-ccInst" style="display:none">${ccInst.map(bankCardHtml).join('')}</div>`;
+  }
+  el.innerHTML=html;
+
+  // Sub-section collapse toggle
+  el.querySelectorAll('.settings-sub-hdr').forEach(hdr=>{
+    hdr.addEventListener('click',e=>{
+      if(e.target.closest('button')) return;
+      const body=document.getElementById(hdr.dataset.target);
+      const chv=hdr.querySelector('.sub-chevron');
+      if(!body)return;
+      const opening=body.style.display==='none';
+      body.style.display=opening?'':'none';
+      if(chv){ chv.textContent=opening?'▴':'▾'; }
+    });
+  });
 
   el.querySelectorAll('.bank-edit-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
@@ -2782,9 +4781,19 @@ function showEditBankModal(bank) {
         <div class="modal-field-label">Type</div>
         <select class="field" id="be-type">
           <option value="bank"${bank&&bank.type==='bank'?' selected':''}>Bank</option>
+          <option value="creditcard"${bank&&bank.type==='creditcard'?' selected':''}>Credit Card</option>
           <option value="ewallet"${bank&&bank.type==='ewallet'?' selected':''}>E-Wallet</option>
-          <option value="instalment"${bank&&bank.type==='instalment'?' selected':''}>Instalment</option>
+          <option value="instalment"${bank&&bank.type==='instalment'?' selected':''}>Installment</option>
           <option value="cash"${bank&&bank.type==='cash'?' selected':''}>Cash</option>
+        </select>
+      </div>
+      <div>
+        <div class="modal-field-label">Role <span style="font-size:10px;color:var(--text-dim)">(label only, no money moved)</span></div>
+        <select class="field" id="be-role">
+          <option value=""${!bank||!bank.role?' selected':''}>— None —</option>
+          <option value="savings"${bank&&bank.role==='savings'?' selected':''}>💰 Savings</option>
+          <option value="spending"${bank&&bank.role==='spending'?' selected':''}>💳 Spending</option>
+          <option value="investment"${bank&&bank.role==='investment'?' selected':''}>📈 Investment</option>
         </select>
       </div>
     </div>
@@ -2798,9 +4807,16 @@ function showEditBankModal(bank) {
     const name=document.getElementById('be-name').value.trim();
     const aliases=document.getElementById('be-aliases').value.split(',').map(a=>a.trim().toLowerCase()).filter(Boolean);
     const type=document.getElementById('be-type').value;
+    const role=document.getElementById('be-role').value||null;
     if (!name) return;
-    if (bank) { bank.emoji=emoji; bank.name=name; bank.aliases=aliases; bank.type=type; }
-    else S.banks.push({id:uid(),emoji,name,aliases,type});
+    if (bank) {
+      bank.emoji=emoji; bank.name=name; bank.aliases=aliases; bank.type=type;
+      if(role){ bank.role=role;
+        if(role==='savings'){ bank.isSavingsBank=true; delete bank.savingsExcluded; }
+        else { delete bank.isSavingsBank; bank.savingsExcluded=true; }
+      } else { delete bank.role; delete bank.isSavingsBank; }
+    }
+    else S.banks.push({id:uid(),emoji,name,aliases,type,...(role?{role}:{})});
     save(); closeModal(); renderSettingsBanks();
   });
   document.getElementById('be-cancel').addEventListener('click', closeModal);
@@ -2918,18 +4934,18 @@ function showModal(html) {
   overlay.classList.add('open');
 }
 
-function showConfirmModal(msg, onConfirm) {
+function showConfirmModal(msg, onConfirm, onCancel, confirmLabel) {
   showModal(`
     <div class="modal-confirm">
       <p>${msg}</p>
       <div class="modal-footer" style="margin-top:0">
-        <button class="btn btn-danger" id="conf-yes">Delete</button>
+        <button class="btn btn-danger" id="conf-yes">${confirmLabel||'Delete'}</button>
         <button class="btn btn-ghost" id="conf-no">Cancel</button>
       </div>
     </div>
   `);
   document.getElementById('conf-yes').addEventListener('click',()=>{ closeModal(); onConfirm(); });
-  document.getElementById('conf-no').addEventListener('click', closeModal);
+  document.getElementById('conf-no').addEventListener('click',()=>{ closeModal(); if(onCancel) onCancel(); });
 }
 
 function closeModal() {
@@ -3026,6 +5042,218 @@ function importJSON(file) {
   reader.readAsText(file);
 }
 
+// ── EXCEL IMPORT ──────────────────────────────────────────
+// Supports the standard format exported by most accounting apps:
+// Columns: Period | Accounts | Category | Subcategory | Note | MYR | Income/Expense | Description | Amount | Currency | ...
+
+function importExcel(file) {
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try {
+      if(typeof XLSX==='undefined'){
+        showModal('<div class="modal-title">⚠️ Library Not Loaded</div><div class="modal-body">The Excel parser hasn\'t loaded yet. Please check your internet connection and try again.</div><div class="modal-footer"><button class="btn btn-primary" onclick="closeModal()">OK</button></div>');
+        return;
+      }
+      const wb=XLSX.read(new Uint8Array(e.target.result), {type:'array', cellDates:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+      if(!rows||rows.length<2){ toast('Empty or unreadable file'); return; }
+
+      // Detect header row (find row containing "Period" or "Date")
+      let headerIdx=0;
+      for(let i=0;i<Math.min(5,rows.length);i++){
+        const r=rows[i].map(c=>String(c||'').toLowerCase());
+        if(r.some(c=>c.includes('period')||c.includes('date'))){ headerIdx=i; break; }
+      }
+      const headers=rows[headerIdx].map(c=>String(c||'').toLowerCase().trim());
+
+      // Map column indices
+      const col=(names)=>{ for(const n of names){ const i=headers.findIndex(h=>h.includes(n)); if(i>=0)return i; } return -1; };
+      const iDate=col(['period','date','time']);
+      const iAcct=col(['accounts','account','bank','wallet']);
+      const iCat=col(['category','cat']);
+      const iNote=col(['note','memo','description','remark']);
+      const iAmt=col(['myr','amount','amt']);
+      const iType=col(['income/expense','type','i/e','inc']);
+      const iCurr=col(['currency','cur']);
+
+      if(iDate<0||iAmt<0){ toast('Cannot find required columns (Date, Amount)'); return; }
+
+      let imported=0, skipped=0, newBanks=[], newCats=[];
+
+      // Category keyword → app category id mapping
+      const CAT_MAP={
+        'food':'food','dining':'food','restaurant':'food','meal':'food','makan':'food',
+        'transport':'transport','petrol':'transport','fuel':'transport','grab':'transport','toll':'transport',
+        'shopping':'shopping','retail':'shopping',
+        'entertainment':'entertainment','movie':'entertainment','subscription':'entertainment',
+        'utilities':'utilities','bill':'utilities','electric':'utilities','water':'utilities',
+        'household':'household','rental':'household','rent':'household',
+        'health':'health','medical':'health','pharmacy':'health','doctor':'health',
+        'education':'education','tuition':'education','course':'education',
+        'travel':'travel','hotel':'travel','flight':'travel',
+        'insurance':'insurance','internet':'internet','mobile':'phone',
+        'property instalment':'household','instalment':'household',
+      };
+      // Income-specific category mapping
+      const CAT_MAP_INCOME={
+        'investment income':'inc_invest','investment':'inc_invest','market movement':'inc_invest',
+        'trading':'inc_invest','dividend':'inc_invest','interest':'inc_invest',
+        'savings':'inc_invest','capital gain':'inc_invest',
+        'salary':'inc_salary','gaji':'inc_salary','payroll':'inc_salary',
+        'side income':'inc_side','freelance':'inc_side','commission':'inc_side',
+      };
+
+      // Fuzzy match: find best existing bank by name similarity
+      function matchBank(name){
+        if(!name) return null;
+        const n=name.toLowerCase().replace(/[^a-z0-9]/g,' ').trim();
+        // exact id match
+        let b=S.banks.find(x=>x.id.toLowerCase()===n);
+        if(b) return b;
+        // exact name match
+        b=S.banks.find(x=>x.name.toLowerCase()===name.toLowerCase());
+        if(b) return b;
+        // alias match
+        b=S.banks.find(x=>x.aliases&&x.aliases.some(a=>name.toLowerCase().includes(a)||a.includes(n)));
+        if(b) return b;
+        // partial name match (bank name appears in account name or vice versa)
+        b=S.banks.find(x=>{
+          const bn=x.name.toLowerCase();
+          return n.includes(bn)||bn.includes(n)||n.split(' ').some(w=>w.length>2&&bn.includes(w));
+        });
+        return b||null;
+      }
+
+      // Fuzzy match: find best existing category
+      function matchCategory(catName, isIncome){
+        if(!catName) return null;
+        const n=catName.toLowerCase();
+        // use income map first for income transactions
+        if(isIncome){
+          for(const [kw,catId] of Object.entries(CAT_MAP_INCOME)){
+            if(n.includes(kw)){ const c=S.categories.find(x=>x.id===catId); if(c)return c; }
+          }
+        }
+        // then general map
+        for(const [kw,catId] of Object.entries(CAT_MAP)){
+          if(n.includes(kw)){ const c=S.categories.find(x=>x.id===catId); if(c)return c; }
+        }
+        // exact name
+        const exact=S.categories.find(c=>c.name.toLowerCase()===n);
+        if(exact) return exact;
+        // partial
+        return S.categories.find(c=>n.includes(c.name.toLowerCase())||c.name.toLowerCase().includes(n))||null;
+      }
+
+      // Get or create bank
+      function getOrCreateBank(name){
+        if(!name) return null;
+        let b=matchBank(name);
+        if(b) return b;
+        // create new
+        const newId=uid();
+        const emoji='🏦';
+        const nb={id:newId, emoji, name:name.trim(), aliases:[name.toLowerCase().trim()], type:'bank'};
+        S.banks.push(nb);
+        newBanks.push(name.trim());
+        return nb;
+      }
+
+      // Get or create category
+      function getOrCreateCat(catName, isIncome){
+        if(!catName) return null;
+        let c=matchCategory(catName, isIncome);
+        if(c) return c;
+        // create new
+        const newId='cat_'+uid();
+        const nc={id:newId, emoji:'🗂️', name:catName.trim(), keywords:[catName.toLowerCase().trim()]};
+        if(isIncome) nc.isIncome=true;
+        S.categories.push(nc);
+        newCats.push(catName.trim());
+        return nc;
+      }
+
+      // Parse each data row
+      for(let i=headerIdx+1;i<rows.length;i++){
+        const r=rows[i];
+        if(!r||r.every(c=>c==null||c==='')) continue;
+
+        // Date
+        let rawDate=r[iDate];
+        let dateStr=todayStr();
+        if(rawDate instanceof Date){ dateStr=rawDate.toISOString().slice(0,10); }
+        else if(rawDate){ const d=new Date(rawDate); if(!isNaN(d)) dateStr=d.toISOString().slice(0,10); }
+
+        // Amount
+        const rawAmt=r[iAmt];
+        const amount=parseFloat(String(rawAmt||'').replace(/[^0-9.-]/g,''))||0;
+        if(amount<=0){ skipped++; continue; }
+
+        // Type (income vs expense)
+        const rawType=String(r[iType]||'').toLowerCase();
+        const isIncome=rawType.includes('income');
+
+        // Account → bank
+        const acctName=String(r[iAcct]||'').trim();
+        const bank=getOrCreateBank(acctName||null);
+
+        // Category
+        const catName=String(r[iCat]||'').trim();
+        const cat=getOrCreateCat(catName||null, isIncome);
+
+        // Description from Note column
+        const desc=String(r[iNote]||r[iCat]||'').trim();
+
+        // Duplicate check: same date + amount + description + bank
+        const isDup=S.transactions.some(t=>
+          t.date===dateStr &&
+          Math.abs(t.amount-amount)<0.01 &&
+          (t.description||'').toLowerCase()===(desc||'').toLowerCase().slice(0,30) &&
+          t.bankId===(bank?bank.id:null)
+        );
+        if(isDup){ skipped++; continue; }
+
+        // Build transaction
+        S.transactions.push({
+          id:uid(), date:dateStr, time:'00:00',
+          type: isIncome?'income':'expense',
+          categoryId: cat?cat.id:(isIncome?'inc_salary':'other'),
+          amount, bankId: bank?bank.id:null,
+          description: desc.slice(0,60),
+          item:'', raw:desc
+        });
+        imported++;
+      }
+
+      // Sort all transactions newest first
+      S.transactions.sort((a,b)=>b.date.localeCompare(a.date)||(b.time||'').localeCompare(a.time||''));
+      save();
+      renderAll();
+
+      // Summary toast + modal
+      const newBankStr=newBanks.length?`\nNew accounts created: ${[...new Set(newBanks)].join(', ')}`:'';
+      const newCatStr=newCats.length?`\nNew categories created: ${[...new Set(newCats)].join(', ')}`:'';
+      showModal(`
+        <div class="modal-title">✅ Excel Import Done</div>
+        <div class="modal-body" style="font-size:14px;line-height:1.8">
+          <div>Imported: <strong>${imported}</strong> transactions</div>
+          <div>Skipped (duplicates/empty): <strong>${skipped}</strong></div>
+          ${newBankStr?`<div style="margin-top:8px;font-size:12px;color:var(--text-muted)">🏦 New accounts:${newBanks.length?'<br>'+[...new Set(newBanks)].map(n=>'· '+n).join('<br>'):'none'}</div>`:''}
+          ${newCatStr?`<div style="font-size:12px;color:var(--text-muted)">📂 New categories:${newCats.length?'<br>'+[...new Set(newCats)].map(n=>'· '+n).join('<br>'):'none'}</div>`:''}
+          <div style="margin-top:12px;font-size:11px;color:var(--text-dim)">Tip: Go to Settings → Banks & Wallets to rename or merge any auto-created accounts.</div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-primary" onclick="closeModal()">Done</button></div>
+      `);
+    } catch(err) {
+      console.error('Excel import error:', err);
+      toast('Error reading Excel file: '+err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+
 function importCSV(file) {
   const reader=new FileReader();
   reader.onload=e=>{
@@ -3094,7 +5322,7 @@ function initCustomRange() {
 }
 
 function openCategoryPicker() {
-  const cats=S.categories.filter(c=>c.id!=='transfer'&&!c.isIncome);
+  const cats=S.categories.filter(c=>!INTERNAL_CATS.has(c.id)&&!c.isIncome);
   const rows=cats.map(c=>`
     <div class="cat-pick-row${custSelectedCatId===c.id?' sel':''}" data-id="${c.id}">
       <span style="font-size:18px">${c.emoji}</span>
@@ -3146,7 +5374,7 @@ function buildQueryBubble(type, txs, from, to, catId) {
         <div class="qb-rec-name">${txCat?txCat.emoji+' ':''} ${tx.description||'—'}</div>
         <div class="qb-rec-meta">${meta}</div>
       </div>
-      <div class="qb-rec-amt ${type==='income'?'income':''}">${type==='income'?'+':''}RM ${(tx.amount||0).toFixed(2)}</div>
+      <div class="qb-rec-amt ${type==='income'?'income':''}">${type==='income'?'+':''}${curSym()} ${(tx.amount||0).toFixed(2)}</div>
     </div>`;
   }).join('');
   const moreStr=filteredTxs.length>30?`<div style="padding:8px 14px;font-size:11px;color:var(--text-dim)">+${filteredTxs.length-30} more</div>`:'';
@@ -3157,7 +5385,7 @@ function buildQueryBubble(type, txs, from, to, catId) {
       <div class="qb-type-badge ${badgeClass}">${typeLabel}</div>
     </div>
     <div class="qb-cat">${catStr}</div>
-    <div class="qb-total">RM ${total.toFixed(2)}</div>
+    <div class="qb-total">${curSym()} ${total.toFixed(2)}</div>
     <div class="qb-count">${filteredTxs.length} record${filteredTxs.length!==1?'s':''}</div>
     <div class="qb-records">${filteredTxs.length>0?(records+moreStr):emptyStr}</div>
   </div>`;
@@ -3169,14 +5397,14 @@ function buildSavingsBubble(from, to) {
     const bal=computeBalance(b.id);
     return `<div class="qb-rec">
       <div class="qb-rec-left"><div class="qb-rec-name">${b.emoji} ${b.name}</div></div>
-      <div class="qb-rec-amt savings">RM ${Math.abs(bal).toFixed(2)}</div>
+      <div class="qb-rec-amt savings">${curSym()} ${Math.abs(bal).toFixed(2)}</div>
     </div>`;
   }).join('');
   const totalSav=S.banks.reduce((a,b)=>a+computeBalance(b.id),0);
   return `<div class="query-bubble">
     <div class="qb-head"><div class="qb-range">${rangeStr}</div><div class="qb-type-badge savings">Savings</div></div>
     <div class="qb-cat">Current Balance</div>
-    <div class="qb-total">RM ${Math.abs(totalSav).toFixed(2)}</div>
+    <div class="qb-total">${curSym()} ${Math.abs(totalSav).toFixed(2)}</div>
     <div class="qb-count">${S.banks.length} account${S.banks.length!==1?'s':''}</div>
     <div class="qb-records">${rows}</div>
   </div>`;
@@ -3191,7 +5419,7 @@ function runCustomQuery() {
   if (custSelectedType==='expense') {
     html=buildQueryBubble('expense',allTx.filter(t=>t.type==='expense'),from,to,custSelectedCatId);
   } else if (custSelectedType==='income') {
-    html=buildQueryBubble('income',allTx.filter(t=>t.type==='income'),from,to,null);
+    html=buildQueryBubble('income',allTx.filter(t=>t.type==='income'&&t.categoryId!=='reimbursement'),from,to,null);
   } else {
     html=buildSavingsBubble(from,to);
   }
@@ -3227,7 +5455,7 @@ function renderBudgetProgress() {
   const monthExp={};
   S.transactions.filter(t=>t.type==='expense'&&t.date.startsWith(monthKey)).forEach(tx=>{
     const cid=tx.categoryId||'other';
-    monthExp[cid]=(monthExp[cid]||0)+(tx.amount||0);
+    monthExp[cid]=(monthExp[cid]||0)+((tx.amount||0)-(tx.reimbursedAmount||0));
   });
   el.innerHTML=visible.map(cat=>{
     const limit=parseFloat(S.budgetLimits[cat.id])||0;
@@ -3247,13 +5475,13 @@ function renderBudgetProgress() {
         <span class="bp-bar-pct">${pct.toFixed(0)}%</span>
       </div>
       <div class="bp-bar-labels">
-        <span class="bp-bar-spent">Spent RM ${spent.toFixed(2)}</span>
-        <span style="font-size:10px;color:var(--text-dim)">Budget RM ${limit.toFixed(2)}</span>
+        <span class="bp-bar-spent">Spent ${curSym()} ${spent.toFixed(2)}</span>
+        <span style="font-size:10px;color:var(--text-dim)">Budget ${curSym()} ${limit.toFixed(2)}</span>
       </div>
       <div class="bp-track"><div class="bp-fill" style="width:${pct}%;background:${bc}"></div></div>
       <div class="bp-bar-labels" style="margin-top:5px;margin-bottom:0">
         <span class="bp-msg ${msgClass}" style="margin-top:0">${msg}</span>
-        <span class="bp-bar-remaining${isWarn?' warn':''}">Can spend RM ${remaining.toFixed(2)}</span>
+        <span class="bp-bar-remaining${isWarn?' warn':''}">Can spend ${curSym()} ${remaining.toFixed(2)}</span>
       </div>
     </div>`;
   }).join('');
@@ -3262,7 +5490,7 @@ function renderBudgetProgress() {
 function openBudgetCatPicker() {
   if (!S.budgetLimits) S.budgetLimits={};
   if (!S.budgetVisible) S.budgetVisible={};
-  const cats=S.categories.filter(c=>c.id!=='transfer'&&!c.isIncome);
+  const cats=S.categories.filter(c=>!INTERNAL_CATS.has(c.id)&&!c.isIncome);
   const rows=cats.map(c=>{
     const on=!!S.budgetVisible[c.id];
     const limit=S.budgetLimits[c.id]||'';
@@ -3270,7 +5498,7 @@ function openBudgetCatPicker() {
       <div class="budget-cat-toggle${on?' on':''}" data-cat="${c.id}" style="flex-shrink:0"></div>
       <span style="font-size:17px">${c.emoji}</span>
       <span style="flex:1;font-size:14px">${c.name}</span>
-      <span style="font-size:12px;color:var(--text-dim)">RM</span>
+      <span style="font-size:12px;color:var(--text-dim)">${curSym()}</span>
       <input type="number" class="budget-limit-input" data-cat="${c.id}" value="${limit}" placeholder="—" step="1" style="width:72px">
     </div>`;
   }).join('');
@@ -3325,7 +5553,7 @@ function renderBudgetPage() {
   const el=document.getElementById('budget-content');
   if (!S.budgetLimits) S.budgetLimits={};
   if (!S.budgetVisible) S.budgetVisible={};
-  const cats=S.categories.filter(c=>c.id!=='transfer'&&!c.isIncome);
+  const cats=S.categories.filter(c=>!INTERNAL_CATS.has(c.id)&&!c.isIncome);
   el.innerHTML=cats.map(cat=>{
     const limit=S.budgetLimits[cat.id]||'';
     return `<div class="budget-cat-item">
@@ -3333,7 +5561,7 @@ function renderBudgetPage() {
         <div class="budget-cat-toggle${on?' on':''}" data-cat="${cat.id}"></div>
         <div class="budget-cat-emoji">${cat.emoji}</div>
         <div class="budget-cat-name">${cat.name}</div>
-        <div class="budget-limit-wrap">RM
+        <div class="budget-limit-wrap">${curSym()}
           <input type="number" class="budget-limit-input" data-cat="${cat.id}" value="${limit}" placeholder="—" step="1">
         </div>
       </div>
@@ -3461,7 +5689,7 @@ function initEvents() {
   document.getElementById('btn-import-csv').addEventListener('click',()=>document.getElementById('import-csv-input').click());
   document.getElementById('import-csv-input').addEventListener('change',e=>{ if(e.target.files[0]) importCSV(e.target.files[0]); });
 
-  // Settings
+
   document.getElementById('settings-add-cat').addEventListener('click',()=>showEditCatModal(null));
   document.getElementById('settings-reorder-cats').addEventListener('click',()=>{
     catReorder=!catReorder;
@@ -3475,6 +5703,20 @@ function initEvents() {
   document.getElementById('btn-export-json').addEventListener('click', exportJSON);
   document.getElementById('btn-import-json').addEventListener('click',()=>document.getElementById('import-json-input').click());
   document.getElementById('import-json-input').addEventListener('change',e=>{ if(e.target.files[0]) importJSON(e.target.files[0]); });
+  document.getElementById('btn-import-excel').addEventListener('click',()=>{
+    const inp=document.getElementById('import-excel-input');
+    inp.value=''; // reset so same file can be re-selected
+    inp.click();
+  });
+  document.getElementById('import-excel-input').addEventListener('change',e=>{
+    const f=e.target.files[0];
+    if(!f) return;
+    if(typeof XLSX==='undefined'){
+      showModal('<div class="modal-title">⚠️ Library Not Loaded</div><div class="modal-body">The Excel parser (SheetJS) hasn\'t loaded yet — this usually means you\'re offline or it was blocked.<br><br>Please check your internet connection and try again.</div><div class="modal-footer"><button class="btn btn-primary" onclick="closeModal()">OK</button></div>');
+      return;
+    }
+    importExcel(f);
+  });
   document.getElementById('btn-clear-data').addEventListener('click',()=>{
     showConfirmModal('Clear ALL data? This cannot be undone.',()=>{
       localStorage.removeItem(SK);
