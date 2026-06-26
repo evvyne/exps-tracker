@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="exps tracker">
@@ -142,6 +142,9 @@ body{font-family:var(--font);color:var(--text);display:flex;flex-direction:colum
 }
 .field:focus{border-color:var(--accent)}
 .field-mono{font-family:var(--mono);font-size:13px}
+/* Prevent iOS Safari from zooming in when focusing an input (needs >=16px) */
+input,select,textarea,.field,.q-typein,.chat-input{font-size:16px !important}
+input[type=date]{font-size:16px !important}
 select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
 
 /* ── CARD ── */
@@ -921,6 +924,10 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
         <button class="btn btn-ghost settings-btn-full" id="btn-import-excel">📊 Import Excel (.xlsx)</button>
         <button class="btn settings-btn-full" style="background:var(--danger-dim);color:var(--danger)" id="btn-clear-data">Clear All Data</button>
       </div>
+    </div>
+    <div style="text-align:center;padding:14px 0 4px">
+      <button class="btn btn-ghost" id="btn-force-update" style="font-size:12px">🔄 Check for Updates</button>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:8px">Exps·Flow <span id="app-version">v56</span></div>
     </div>
     <div style="height:24px"></div>
     <input type="file" id="import-json-input" accept=".json" style="display:none">
@@ -1744,7 +1751,8 @@ function parseInput(raw) {
   }
 
   // ── INSTALLMENT CREATION: "spaylater - iphone 1800/12" or "uob cc - iphone 1800" ──
-  {
+  // (skipped when the line starts with pay/paid — those are repayments/fixed payments, handled below)
+  if(!/^(pay|paid)\b/i.test(lower)) {
     const instProvider=detectInstallmentProvider(lower);
     // Also detect "<item> <amount>/<months>" pattern WITHOUT a provider (e.g. "iphone 1888/12")
     // Require amount ≥ 3 digits (or decimal) so dates like "20/6" aren't mistaken for installments
@@ -1860,7 +1868,18 @@ function parseInput(raw) {
     }
     const nameQuery=nameTokens.join(' ').toLowerCase();
     if (nameQuery) {
-      return {command:'payFixed', query:nameQuery, amount:payAmt, date:payDate};
+      // If the name clearly matches a fixed expense → pay that fixed expense
+      const fx=findFixedFuzzy(nameQuery);
+      if(fx && fx.item){
+        return {command:'payFixed', query:fx.item.name.toLowerCase(), amount:payAmt, date:payDate};
+      }
+      // If it matches a credit-card / installment provider → repayment
+      const provId=resolveRepayProvider(nameQuery);
+      if(provId){
+        return {command:'repayInstallment', providerId:provId, providerQuery:nameQuery, amount:payAmt, fromBankId:null};
+      }
+      // Otherwise ambiguous — ask the user: fixed / repayment / expense
+      return {command:'paidAmbiguous', query:nameQuery, amount:payAmt, date:payDate, candidates:(fx&&fx.candidates)||[]};
     }
   }
 
@@ -2171,6 +2190,8 @@ function handleCommand(cmd) {
     });
   } else if (cmd.command==='payFixed') {
     handlePayFixed(cmd);
+  } else if (cmd.command==='paidAmbiguous') {
+    handlePaidAmbiguous(cmd);
   } else if (cmd.command==='savingsTransfer') {
     handleSavingsTransfer(cmd);
   } else if (cmd.command==='repayInstallment') {
@@ -2438,12 +2459,19 @@ function handleRepayInstallment(cmd) {
   const active=(S.installments||[]).filter(p=>p.providerId===providerId && p.remainingAmount>0.005);
   if(active.length===0){
     const pb=bankById(providerId);
-    appendSystemBubble(`No active installments under ${pb?pb.name:'that provider'}.`);
+    appendSystemBubble(`✅ ${pb?pb.name:'That account'} is fully paid — nothing outstanding. No money was deducted.`);
     return;
   }
   const provName=active[0].providerName||(bankById(providerId)||{}).name||'Installment';
-  // Default suggested amount = sum of this-month monthly dues
-  const monthDue=active.reduce((a,p)=>a+Math.min(p.monthlyAmount,p.remainingAmount),0);
+  // This month's due (respects statement cycle for credit cards)
+  const summary=providerSummary(providerId);
+  const monthDue=summary.thisMonthDue;
+  // GUARD: if this month's due is already 0 (already paid this cycle), block and inform — like fixed expenses
+  if(monthDue<=0.005){
+    const pb=bankById(providerId);
+    appendSystemBubble(`✅ ${pb?pb.name:provName}'s payment for this month is already settled (${curSym()} 0 due). No money was deducted.${summary.totalOutstanding>0.005?` You still have ${curSym()} ${summary.totalOutstanding.toFixed(2)} outstanding for future months.`:''}`);
+    return;
+  }
 
   // Missing amount → ask (suggest month due)
   if(cmd.amount==null||cmd.amount<=0){
@@ -2507,38 +2535,85 @@ function askRepayProvider(cmd){
 }
 
 function doRepayInstallment(providerId, payAmount, fromBankId){
-  const active=(S.installments||[]).filter(p=>p.providerId===providerId && p.remainingAmount>0.005);
+  let active=(S.installments||[]).filter(p=>p.providerId===providerId && p.remainingAmount>0.005);
   if(active.length===0){ appendSystemBubble('No active installments to pay.'); return; }
   const provName=active[0].providerName||(bankById(providerId)||{}).name||'Installment';
-  // Split proportionally by MONTHLY amount (so paying one month's due hits each item's monthly)
-  const totalMonthly=active.reduce((a,p)=>a+Math.min(p.monthlyAmount,p.remainingAmount),0);
+  const bank=bankById(providerId);
+  // For a credit card with a statement cycle: pay items that are BILLED this statement first
+  // (one-time purchases on/before the last statement date, plus installments' monthly dues).
+  // Purchases that rolled to next statement are paid only if money remains.
+  if(bank && (bank.type==='creditcard'||bank.type==='instalment') && bank.statementDay){
+    const stmt=lastStatementDate(bank.statementDay);
+    const billed=active.filter(p=>p.months>1 || (p.createdDate||todayStr())<=stmt);
+    const rolled=active.filter(p=>!(p.months>1 || (p.createdDate||todayStr())<=stmt));
+    active=[...billed, ...rolled]; // billed first
+  }
+  const isCCStatement = bank && (bank.type==='creditcard'||bank.type==='instalment') && bank.statementDay;
   const totalRemaining=active.reduce((a,p)=>a+p.remainingAmount,0);
   let pay=Math.min(payAmount, totalRemaining);
-  // basis for split: monthly dues (falls back to remaining if no monthly)
-  const basisTotal = totalMonthly>0 ? totalMonthly : totalRemaining;
   const breakdown=[];
-  let allocated=0;
-  active.forEach((p,idx)=>{
-    const basis = totalMonthly>0 ? Math.min(p.monthlyAmount,p.remainingAmount) : p.remainingAmount;
-    let share;
-    if(idx===active.length-1){
-      share=Math.round((pay-allocated)*100)/100; // last absorbs rounding
-    } else {
-      share=Math.round((pay*(basis/basisTotal))*100)/100;
-    }
-    share=Math.min(share, p.remainingAmount);
-    allocated+=share;
-    p.remainingAmount=Math.round((p.remainingAmount-share)*100)/100;
-    if(p.monthlyAmount>0){
-      p.remainingMonths=Math.max(0, Math.ceil(p.remainingAmount/p.monthlyAmount));
-    } else {
-      p.remainingMonths=p.remainingAmount>0.005?1:0;
-    }
-    if(p.remainingAmount<=0.005){ p.remainingAmount=0; p.remainingMonths=0; p.paid=true; }
-    if(!p.paymentHistory) p.paymentHistory=[];
-    if(share>0) p.paymentHistory.unshift({date:todayStr(), amount:share});
-    breakdown.push({name:p.itemName, amt:share, left:p.remainingAmount, months:p.remainingMonths});
-  });
+
+  if(isCCStatement){
+    // SEQUENTIAL: settle each item's THIS-MONTH due first (installments capped at monthly amount,
+    // one-time at full remaining), billed items first. Any leftover then pays down balances early.
+    const curMonth=todayStr().slice(0,7);
+    let remainingPay=pay;
+    // Pass 1: cover this month's due for each item (installment → monthly, one-time → full)
+    active.forEach(p=>{
+      if(remainingPay<=0.005) return;
+      if(p.lastPaidMonth===curMonth && p.months>1) return; // installment already paid this month
+      const monthlyDue = p.months>1 ? Math.min(p.monthlyAmount, p.remainingAmount) : p.remainingAmount;
+      let share=Math.min(remainingPay, monthlyDue);
+      share=Math.round(share*100)/100;
+      if(share<=0) return;
+      remainingPay=Math.round((remainingPay-share)*100)/100;
+      p.remainingAmount=Math.round((p.remainingAmount-share)*100)/100;
+      p.remainingMonths=p.remainingAmount>0.005?(p.months>1?Math.ceil(p.remainingAmount/p.monthlyAmount):1):0;
+      if(p.remainingAmount<=0.005){ p.remainingAmount=0; p.remainingMonths=0; p.paid=true; }
+      if(!p.paymentHistory) p.paymentHistory=[];
+      p.lastPaidMonth=curMonth;
+      p.paymentHistory.unshift({date:todayStr(), amount:share});
+      breakdown.push({name:p.itemName, amt:share, left:p.remainingAmount, months:p.remainingMonths});
+    });
+    // Pass 2: any money still left pays down remaining balances early (installments), billed order
+    active.forEach(p=>{
+      if(remainingPay<=0.005 || p.remainingAmount<=0.005) return;
+      let share=Math.min(remainingPay, p.remainingAmount);
+      share=Math.round(share*100)/100;
+      if(share<=0) return;
+      remainingPay=Math.round((remainingPay-share)*100)/100;
+      p.remainingAmount=Math.round((p.remainingAmount-share)*100)/100;
+      p.remainingMonths=p.remainingAmount>0.005?(p.months>1?Math.ceil(p.remainingAmount/p.monthlyAmount):1):0;
+      if(p.remainingAmount<=0.005){ p.remainingAmount=0; p.remainingMonths=0; p.paid=true; }
+      // merge into existing breakdown entry if present
+      const ex=breakdown.find(b=>b.name===p.itemName);
+      if(ex){ ex.amt=Math.round((ex.amt+share)*100)/100; ex.left=p.remainingAmount; ex.months=p.remainingMonths; }
+      else breakdown.push({name:p.itemName, amt:share, left:p.remainingAmount, months:p.remainingMonths});
+      if(p.paymentHistory && p.paymentHistory[0] && p.paymentHistory[0].date===todayStr()){
+        p.paymentHistory[0].amount=Math.round((p.paymentHistory[0].amount+share)*100)/100;
+      } else { (p.paymentHistory=p.paymentHistory||[]).unshift({date:todayStr(), amount:share}); }
+    });
+  } else {
+    // PROPORTIONAL (installments / BNPL): split by monthly amount across active plans
+    const totalMonthly=active.reduce((a,p)=>a+Math.min(p.monthlyAmount,p.remainingAmount),0);
+    const basisTotal = totalMonthly>0 ? totalMonthly : totalRemaining;
+    let allocated=0;
+    active.forEach((p,idx)=>{
+      const basis = totalMonthly>0 ? Math.min(p.monthlyAmount,p.remainingAmount) : p.remainingAmount;
+      let share;
+      if(idx===active.length-1){ share=Math.round((pay-allocated)*100)/100; }
+      else { share=Math.round((pay*(basis/basisTotal))*100)/100; }
+      share=Math.min(share, p.remainingAmount);
+      allocated+=share;
+      p.remainingAmount=Math.round((p.remainingAmount-share)*100)/100;
+      if(p.monthlyAmount>0){ p.remainingMonths=Math.max(0, Math.ceil(p.remainingAmount/p.monthlyAmount)); }
+      else { p.remainingMonths=p.remainingAmount>0.005?1:0; }
+      if(p.remainingAmount<=0.005){ p.remainingAmount=0; p.remainingMonths=0; p.paid=true; }
+      if(!p.paymentHistory) p.paymentHistory=[];
+      if(share>0){ p.lastPaidMonth=todayStr().slice(0,7); p.paymentHistory.unshift({date:todayStr(), amount:share}); }
+      breakdown.push({name:p.itemName, amt:share, left:p.remainingAmount, months:p.remainingMonths});
+    });
+  }
   // Record a repayment transaction (expense from the paying bank)
   const txId=uid();
   S.transactions.unshift({
@@ -2729,6 +2804,48 @@ function editDistance(a,b){
     }
   }
   return dp[m][n];
+}
+
+// "paid xxx 600" where xxx isn't a known fixed expense or provider → ask what kind
+function handlePaidAmbiguous(cmd){
+  const msgs=document.getElementById('chat-messages');
+  const bubble=document.createElement('div');
+  bubble.className='bubble';
+  const amtLabel=cmd.amount?` ${curSym()} ${cmd.amount.toFixed(2)}`:'';
+  bubble.innerHTML=`<div class="bubble-question">What kind of payment is "${cmd.query}"${amtLabel}?
+    <div class="q-opts" style="flex-direction:column;align-items:stretch">
+      <div class="q-opt" id="pa-fixed" style="margin-bottom:4px">📌 Fixed Expense <span style="font-size:10px;color:var(--text-dim)">— recurring bill / subscription</span></div>
+      <div class="q-opt" id="pa-repay" style="margin-bottom:4px">💳 Credit Card / Installment <span style="font-size:10px;color:var(--text-dim)">— repay a card or plan</span></div>
+      <div class="q-opt" id="pa-expense">🛒 Normal Expense <span style="font-size:10px;color:var(--text-dim)">— one-off spending</span></div>
+    </div></div>`;
+  // Fixed: if there were close candidates, let them pick; else treat as a new/!found fixed
+  bubble.querySelector('#pa-fixed').addEventListener('click',()=>{
+    bubble.remove();
+    if(cmd.candidates && cmd.candidates.length){
+      askWhichFixed({command:'payFixed', amount:cmd.amount, date:cmd.date}, cmd.candidates);
+    } else {
+      handlePayFixed({command:'payFixed', query:cmd.query, amount:cmd.amount, date:cmd.date});
+    }
+  });
+  // Repayment: route to installment repay (will ask which provider + bank)
+  bubble.querySelector('#pa-repay').addEventListener('click',()=>{
+    bubble.remove();
+    handleRepayInstallment({command:'repayInstallment', providerId:resolveRepayProvider(cmd.query), providerQuery:cmd.query, amount:cmd.amount, fromBankId:null});
+  });
+  // Normal expense: build a pending expense and ask category + bank
+  bubble.querySelector('#pa-expense').addEventListener('click',()=>{
+    bubble.remove();
+    const cat=detectCategory(cmd.query);
+    const tx={
+      id:uid(), date:cmd.date||todayStr(), time:timeStr(), type:'expense',
+      categoryId:cat?cat.id:null, amount:cmd.amount, bankId:null,
+      description:cmd.query, item:cmd.query, raw:'paid '+cmd.query,
+      _needsFill:true
+    };
+    processPendingTx(tx);
+  });
+  msgs.appendChild(bubble);
+  msgs.scrollTop=msgs.scrollHeight;
 }
 
 function handlePayFixed(cmd) {
@@ -3887,22 +4004,80 @@ function computeBalance(bankId) {
 }
 
 // Compute a provider's financial summary (installments + one-time items under it)
+function ordinal(n){
+  const s=['th','st','nd','rd'], v=n%100;
+  return n+(s[(v-20)%10]||s[v]||s[0]);
+}
+
+// Given a statement day (1-28), return the date string of the most recent statement
+// that has already passed as of `ref` (today). Purchases on/before this date are billed.
+function lastStatementDate(statementDay, ref){
+  const d=ref?new Date(ref):new Date();
+  const y=d.getFullYear(), m=d.getMonth(), day=d.getDate();
+  // statement this month
+  let stmtY=y, stmtM=m;
+  if(day < statementDay){ // this month's statement hasn't happened yet → use last month's
+    stmtM=m-1; if(stmtM<0){ stmtM=11; stmtY=y-1; }
+  }
+  return dateToStr(new Date(stmtY, stmtM, statementDay));
+}
+// Next payment due date string given a due day, from `ref`
+function nextDueDate(dueDay, ref){
+  const d=ref?new Date(ref):new Date();
+  const y=d.getFullYear(), m=d.getMonth(), day=d.getDate();
+  let dueY=y, dueM=m;
+  if(day > dueDay){ dueM=m+1; if(dueM>11){ dueM=0; dueY=y+1; } }
+  return dateToStr(new Date(dueY, dueM, dueDay));
+}
+
 function providerSummary(providerId){
   const plans=(S.installments||[]).filter(p=>p.providerId===providerId);
   const installmentItems=plans.filter(p=>p.months>1);
   const oneTimeItems=plans.filter(p=>p.months<=1);
   // Total outstanding = sum of remaining for unpaid items
   const totalOutstanding=plans.filter(p=>!p.paid).reduce((a,p)=>a+p.remainingAmount,0);
-  // This month due: installments → monthly amount; one-time → full remaining; only unpaid
-  const thisMonthDue=plans.filter(p=>!p.paid).reduce((a,p)=>{
-    if(p.months>1) return a+Math.min(p.monthlyAmount,p.remainingAmount);
-    return a+p.remainingAmount;
-  },0);
+  const bank=bankById(providerId);
+  const isCC = bank && (bank.type==='creditcard'||bank.type==='instalment');
+  let thisMonthDue=0, dueDateStr=null, daysUntilDue=null, statementInfo=null;
+
+  if(isCC && bank.statementDay){
+    // Credit card with a statement cycle: only purchases billed on/before the last statement
+    // count toward "this month due". Later purchases roll into the next statement.
+    const stmtDate=lastStatementDate(bank.statementDay);
+    const curMonth=todayStr().slice(0,7);
+    statementInfo={statementDay:bank.statementDay, lastStatement:stmtDate};
+    thisMonthDue=plans.filter(p=>!p.paid).reduce((a,p)=>{
+      const created=p.createdDate||todayStr();
+      if(p.months>1){
+        // installment: if this month's monthly portion already paid → 0, else the monthly amount
+        if(p.lastPaidMonth===curMonth) return a;
+        return a+Math.min(p.monthlyAmount,p.remainingAmount);
+      }
+      // one-time purchase: only counts if billed (on/before last statement); show remaining balance
+      if(created<=stmtDate) return a+p.remainingAmount;
+      return a; // rolls to next statement
+    },0);
+    if(bank.dueDay){
+      dueDateStr=nextDueDate(bank.dueDay);
+      const today=new Date(todayStr());
+      daysUntilDue=Math.round((new Date(dueDateStr)-today)/(1000*60*60*24));
+    }
+  } else {
+    // No statement cycle (or installment provider): all unpaid is "due", minus paid-this-month
+    const curMonth=todayStr().slice(0,7);
+    thisMonthDue=plans.filter(p=>!p.paid).reduce((a,p)=>{
+      if(p.months>1){
+        if(p.lastPaidMonth===curMonth) return a; // installment monthly already paid
+        return a+Math.min(p.monthlyAmount,p.remainingAmount);
+      }
+      return a+p.remainingAmount; // one-time → remaining balance (partial payments reduce it)
+    },0);
+  }
   // Payment history (merged across all plans, newest first)
   const history=[];
   plans.forEach(p=>{ (p.paymentHistory||[]).forEach(h=>history.push({...h,item:p.itemName})); });
   history.sort((a,b)=>b.date.localeCompare(a.date));
-  return {plans, installmentItems, oneTimeItems, totalOutstanding, thisMonthDue, history};
+  return {plans, installmentItems, oneTimeItems, totalOutstanding, thisMonthDue, history, dueDateStr, daysUntilDue, statementInfo, isCC};
 }
 
 // Collapsed provider card (Credit Card / Installment) — name only, expands to detail
@@ -3933,6 +4108,9 @@ function providerCardHtml(bank){
       <div class="sav-card-top">
         <div class="sav-icon">${bank.emoji}</div>
         <div class="sav-name" style="flex:1">${bank.name}</div>
+        ${s.dueDateStr?`<div style="font-size:10px;color:${s.daysUntilDue!=null&&s.daysUntilDue<=5?'var(--danger)':'var(--text-dim)'};margin-right:6px;text-align:right;line-height:1.3">
+          <div>due ${fmtDate(s.dueDateStr)}</div>${s.thisMonthDue>0.005?`<div style="color:var(--accent);font-family:var(--mono)">${curSym()} ${s.thisMonthDue.toFixed(2)}</div>`:`<div style="color:var(--success)">paid ✓</div>`}
+        </div>`:(s.thisMonthDue>0.005?`<div style="font-size:11px;color:var(--accent);font-family:var(--mono);margin-right:6px">${curSym()} ${s.thisMonthDue.toFixed(2)}</div>`:'')}
         <div class="sav-actions">
           <button class="btn-icon sav-del-btn" data-bank="${bank.id}" title="Delete" style="font-size:13px;font-family:var(--font);font-weight:400;color:var(--text-dim)">×</button>
           <div class="sav-chevron" style="font-size:12px;color:var(--text-dim);margin-left:2px">▾</div>
@@ -3949,6 +4127,13 @@ function providerCardHtml(bank){
             <span style="color:var(--text-muted)">This Month Due</span>
             <span style="font-family:var(--mono);color:var(--accent);font-weight:600">${curSym()} ${s.thisMonthDue.toFixed(2)}</span>
           </div>
+          ${s.statementInfo?`<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;color:var(--text-dim)">
+            <span>Statement day</span><span>${ordinal(s.statementInfo.statementDay)} each month</span>
+          </div>`:''}
+          ${s.dueDateStr?`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0">
+            <span style="color:var(--text-muted)">Payment Due</span>
+            <span style="font-family:var(--mono);color:${s.daysUntilDue!=null&&s.daysUntilDue<=5?'var(--danger)':'var(--text)'};font-weight:600">${fmtDate(s.dueDateStr)}${s.daysUntilDue!=null?` · ${s.daysUntilDue}d`:''}</span>
+          </div>`:''}
         </div>
         ${instRows?`<div style="padding:8px 14px 2px"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">📦 Installments</div></div>${instRows}`:''}
         ${oneRows?`<div style="padding:8px 14px 2px"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">💸 One-time (unpaid)</div></div>${oneRows}`:''}
@@ -4796,18 +4981,42 @@ function showEditBankModal(bank) {
           <option value="investment"${bank&&bank.role==='investment'?' selected':''}>📈 Investment</option>
         </select>
       </div>
+      <div id="be-cc-dates" style="display:${bank&&(bank.type==='creditcard'||bank.type==='instalment')?'block':'none'}">
+        <div style="display:flex;gap:8px">
+          <div style="flex:1">
+            <div class="modal-field-label">Statement day <span style="font-size:10px;color:var(--text-dim)">(1–28)</span></div>
+            <input class="field" id="be-stmt-day" type="number" min="1" max="28" inputmode="numeric" placeholder="e.g. 25" value="${bank&&bank.statementDay?bank.statementDay:''}">
+          </div>
+          <div style="flex:1">
+            <div class="modal-field-label">Payment due day <span style="font-size:10px;color:var(--text-dim)">(1–28)</span></div>
+            <input class="field" id="be-due-day" type="number" min="1" max="28" inputmode="numeric" placeholder="e.g. 15" value="${bank&&bank.dueDay?bank.dueDay:''}">
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:5px;line-height:1.4">Purchases on/before the statement day count in this month's bill. Later purchases roll to next month. Due day is usually ~15–20 days after the statement day. (Optional — leave blank to count all unpaid as due.)</div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary" id="be-save">Save</button>
       <button class="btn btn-ghost" id="be-cancel">Cancel</button>
     </div>
   `);
+  // Toggle statement/due date fields for credit cards & installments
+  const typeSel=document.getElementById('be-type');
+  typeSel.addEventListener('change',()=>{
+    const t=typeSel.value;
+    document.getElementById('be-cc-dates').style.display = (t==='creditcard'||t==='instalment')?'block':'none';
+  });
   document.getElementById('be-save').addEventListener('click',()=>{
     const emoji=document.getElementById('be-emoji').value.trim()||'🏦';
     const name=document.getElementById('be-name').value.trim();
     const aliases=document.getElementById('be-aliases').value.split(',').map(a=>a.trim().toLowerCase()).filter(Boolean);
     const type=document.getElementById('be-type').value;
     const role=document.getElementById('be-role').value||null;
+    // credit-card statement & due days (1-28)
+    let stmtDay=parseInt(document.getElementById('be-stmt-day').value);
+    let dueDay=parseInt(document.getElementById('be-due-day').value);
+    if(isNaN(stmtDay)||stmtDay<1||stmtDay>28) stmtDay=null;
+    if(isNaN(dueDay)||dueDay<1||dueDay>28) dueDay=null;
     if (!name) return;
     if (bank) {
       bank.emoji=emoji; bank.name=name; bank.aliases=aliases; bank.type=type;
@@ -4815,8 +5024,16 @@ function showEditBankModal(bank) {
         if(role==='savings'){ bank.isSavingsBank=true; delete bank.savingsExcluded; }
         else { delete bank.isSavingsBank; bank.savingsExcluded=true; }
       } else { delete bank.role; delete bank.isSavingsBank; }
+      if(type==='creditcard'||type==='instalment'){
+        if(stmtDay) bank.statementDay=stmtDay; else delete bank.statementDay;
+        if(dueDay) bank.dueDay=dueDay; else delete bank.dueDay;
+      } else { delete bank.statementDay; delete bank.dueDay; }
     }
-    else S.banks.push({id:uid(),emoji,name,aliases,type,...(role?{role}:{})});
+    else {
+      const nb={id:uid(),emoji,name,aliases,type,...(role?{role}:{})};
+      if(type==='creditcard'||type==='instalment'){ if(stmtDay)nb.statementDay=stmtDay; if(dueDay)nb.dueDay=dueDay; }
+      S.banks.push(nb);
+    }
     save(); closeModal(); renderSettingsBanks();
   });
   document.getElementById('be-cancel').addEventListener('click', closeModal);
@@ -5393,19 +5610,28 @@ function buildQueryBubble(type, txs, from, to, catId) {
 
 function buildSavingsBubble(from, to) {
   const rangeStr=`${from.replace(/-/g,'·')} – ${to.replace(/-/g,'·')}`;
-  const rows=S.banks.map(b=>{
+  // Only savings-role accounts (excludes installments, credit cards, non-savings banks)
+  const savIds=getSavingsBankIds();
+  const savBanks=savIds.map(id=>bankById(id)).filter(Boolean);
+  if(savBanks.length===0){
+    return `<div class="query-bubble">
+      <div class="qb-head"><div class="qb-range">${rangeStr}</div><div class="qb-type-badge savings">Savings</div></div>
+      <div style="font-size:13px;color:var(--text-dim);padding:14px 0;text-align:center">No savings accounts yet.<br>Set one with "savings CIMB" or mark an account as savings in Settings.</div>
+    </div>`;
+  }
+  const rows=savBanks.map(b=>{
     const bal=computeBalance(b.id);
     return `<div class="qb-rec">
       <div class="qb-rec-left"><div class="qb-rec-name">${b.emoji} ${b.name}</div></div>
       <div class="qb-rec-amt savings">${curSym()} ${Math.abs(bal).toFixed(2)}</div>
     </div>`;
   }).join('');
-  const totalSav=S.banks.reduce((a,b)=>a+computeBalance(b.id),0);
+  const totalSav=savBanks.reduce((a,b)=>a+computeBalance(b.id),0);
   return `<div class="query-bubble">
     <div class="qb-head"><div class="qb-range">${rangeStr}</div><div class="qb-type-badge savings">Savings</div></div>
     <div class="qb-cat">Current Balance</div>
     <div class="qb-total">${curSym()} ${Math.abs(totalSav).toFixed(2)}</div>
-    <div class="qb-count">${S.banks.length} account${S.banks.length!==1?'s':''}</div>
+    <div class="qb-count">${savBanks.length} savings account${savBanks.length!==1?'s':''}</div>
     <div class="qb-records">${rows}</div>
   </div>`;
 }
@@ -5725,6 +5951,16 @@ function initEvents() {
       document.getElementById('chat-messages').innerHTML='<div class="chat-welcome"><p>Log your expenses here 💬</p><div class="cw-hint">lunch · nasi lemak · 10 · hlb</div></div>';
       toast('All data cleared');
     });
+  });
+  const fu=document.getElementById('btn-force-update');
+  if(fu) fu.addEventListener('click', async ()=>{
+    toast('Checking for updates…');
+    try{
+      if('caches' in window){ const keys=await caches.keys(); await Promise.all(keys.map(k=>caches.delete(k))); }
+      if('serviceWorker' in navigator){ const regs=await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r=>r.unregister())); }
+    }catch(e){}
+    // hard reload from network
+    location.reload(true);
   });
 }
 
