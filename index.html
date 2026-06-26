@@ -284,40 +284,42 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
   padding:12px 16px 8px;
 }
 .fixed-item{
-  display:flex;align-items:center;gap:10px;
+  display:flex;align-items:flex-start;gap:10px;
   padding:12px 16px;border-bottom:1px solid var(--border);
   background:var(--surface);
 }
 .fixed-check{
   width:20px;height:20px;border-radius:5px;
   border:2px solid var(--border);
-  background:transparent;cursor:pointer;flex-shrink:0;
+  background:transparent;cursor:pointer;flex-shrink:0;margin-top:2px;
   display:flex;align-items:center;justify-content:center;
   transition:border-color .15s,background .15s;
 }
 .fixed-check.checked{background:var(--accent);border-color:var(--accent);color:#000}
 .fixed-check.checked::after{content:'✓';font-size:12px;font-weight:700;color:#000}
-.fixed-paid-pill{flex-shrink:0;padding:4px 10px;border-radius:14px;background:rgba(76,217,100,.15);color:var(--success);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:opacity .15s}
+.fixed-paid-pill{flex-shrink:0;padding:4px 10px;border-radius:14px;background:rgba(76,217,100,.15);color:var(--success);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:opacity .15s;margin-top:1px}
 .fixed-paid-pill:active{opacity:.6}
-.fixed-info{flex:1;min-width:0}
-.fixed-name{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:500}
+/* main column holds the title row AND the fields row, stacked */
+.fixed-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+.fixed-info{min-width:0}
+.fixed-name{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:500;flex-wrap:wrap}
 .fixed-emoji{font-size:17px}
 .fixed-badge{
   font-size:10px;padding:2px 7px;border-radius:10px;
   background:var(--danger-dim);color:var(--danger);font-weight:500;
 }
 .fixed-meta{font-size:11px;color:var(--text-dim);margin-top:3px;font-family:var(--mono)}
-.fixed-fields{display:flex;gap:6px;align-items:center;flex-shrink:0}
+.fixed-fields{display:flex;gap:6px;align-items:center}
 .fixed-bank-sel{
-  padding:6px 8px;background:var(--surface2);border:1px solid var(--border);
-  border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);font-size:12px;
-  outline:none;cursor:pointer;max-width:92px;
+  padding:7px 8px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);color:var(--text);font-family:var(--font);
+  outline:none;cursor:pointer;flex:1;min-width:0;
 }
 .fixed-amount-input{
-  width:80px;padding:6px 10px;
+  width:90px;flex-shrink:0;padding:7px 10px;
   background:var(--surface2);border:1px solid var(--border);
   border-radius:var(--radius-sm);color:var(--text);
-  font-family:var(--font);font-size:12px;outline:none;text-align:right;
+  font-family:var(--font);outline:none;text-align:right;
 }
 .fixed-amount-input:focus{border-color:var(--accent)}
 .fixed-footer{
@@ -927,7 +929,7 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
     </div>
     <div style="text-align:center;padding:14px 0 4px">
       <button class="btn btn-ghost" id="btn-force-update" style="font-size:12px">🔄 Check for Updates</button>
-      <div style="font-size:11px;color:var(--text-dim);margin-top:8px">Exps·Flow <span id="app-version">v56</span></div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:8px">Exps·Flow <span id="app-version">v57</span></div>
     </div>
     <div style="height:24px"></div>
     <input type="file" id="import-json-input" accept=".json" style="display:none">
@@ -3616,19 +3618,21 @@ function renderFixed() {
     html+=`
       <div class="${rowClass}" data-id="${item.id}">
         ${leftControl}
-        <div class="fixed-info">
-          <div class="fixed-name">
-            <span class="fixed-emoji">${item.emoji}</span>
-            <span>${item.name}</span>
-            ${isDue&&!paidThisMonth?`<span class="fixed-badge" style="background:var(--danger-dim);color:var(--danger)">⚠️ Due in ${daysUntil}d</span>`:''}
+        <div class="fixed-main">
+          <div class="fixed-info">
+            <div class="fixed-name">
+              <span class="fixed-emoji">${item.emoji}</span>
+              <span>${item.name}</span>
+              ${isDue&&!paidThisMonth?`<span class="fixed-badge" style="background:var(--danger-dim);color:var(--danger)">⚠️ Due in ${daysUntil}d</span>`:''}
+            </div>
+            <div class="fixed-meta">${cycleLabel(item)} · ${dayStr}</div>
           </div>
-          <div class="fixed-meta">${cycleLabel(item)} · ${dayStr}</div>
-        </div>
-        <div class="fixed-fields">
-          <select class="fixed-bank-sel" data-id="${item.id}">${bankOpts}</select>
-          <input type="number" class="fixed-amount-input" data-id="${item.id}" value="${item.amount}" placeholder="0.00" step="0.01">
-          <button class="btn-icon fixed-edit-btn" data-id="${item.id}" title="Edit" style="font-size:13px">✏️</button>
-          <button class="btn-icon fixed-del-btn" data-id="${item.id}" title="Delete" style="color:var(--text-dim);font-size:15px;font-family:var(--font);font-weight:400;line-height:1">×</button>
+          <div class="fixed-fields">
+            <select class="fixed-bank-sel" data-id="${item.id}">${bankOpts}</select>
+            <input type="number" class="fixed-amount-input" data-id="${item.id}" value="${item.amount}" placeholder="0.00" step="0.01">
+            <button class="btn-icon fixed-edit-btn" data-id="${item.id}" title="Edit" style="font-size:15px;flex-shrink:0">✏️</button>
+            <button class="btn-icon fixed-del-btn" data-id="${item.id}" title="Delete" style="color:var(--text-dim);font-size:17px;font-family:var(--font);font-weight:400;line-height:1;flex-shrink:0">×</button>
+          </div>
         </div>
       </div>
     `;
