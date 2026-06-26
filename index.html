@@ -37,7 +37,13 @@
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden;background:var(--bg)}
-body{font-family:var(--font);color:var(--text);display:flex;flex-direction:column;height:100dvh;overflow:hidden}
+html{height:-webkit-fill-available}
+body{
+  font-family:var(--font);color:var(--text);
+  display:flex;flex-direction:column;
+  height:100vh;height:100dvh;height:-webkit-fill-available;
+  overflow:hidden;
+}
 
 /* ── NAV ── */
 #app-title{
@@ -278,7 +284,10 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
 /* ══════════════════════════════
    FIXED TAB
 ══════════════════════════════ */
-#tab-fixed{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+#tab-fixed{display:none;flex-direction:column;overflow:hidden}
+#tab-fixed.active{display:flex}
+#tab-fixed .fixed-controls{flex-shrink:0}
+#fixed-list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0}
 .fixed-controls{
   display:flex;justify-content:space-between;align-items:center;
   padding:12px 16px 8px;
@@ -323,8 +332,9 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
 }
 .fixed-amount-input:focus{border-color:var(--accent)}
 .fixed-footer{
-  position:fixed;bottom:env(safe-area-inset-bottom,0px);left:0;right:0;
-  padding:10px 16px 12px;background:var(--surface);
+  flex-shrink:0;
+  padding:10px 16px calc(12px + env(safe-area-inset-bottom,0px));
+  background:var(--surface);
   border-top:1px solid var(--border);
   display:flex;flex-direction:column;gap:8px;
 }
@@ -929,7 +939,7 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
     </div>
     <div style="text-align:center;padding:14px 0 4px">
       <button class="btn btn-ghost" id="btn-force-update" style="font-size:12px">🔄 Check for Updates</button>
-      <div style="font-size:11px;color:var(--text-dim);margin-top:8px">Exps·Flow <span id="app-version">v57</span></div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:8px">Exps·Flow <span id="app-version">v58</span></div>
     </div>
     <div style="height:24px"></div>
     <input type="file" id="import-json-input" accept=".json" style="display:none">
