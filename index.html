@@ -166,13 +166,32 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
   display:flex;flex-direction:column;gap:8px;
 }
 .chat-welcome{
-  text-align:center;padding:32px 16px;color:var(--text-muted);
+  text-align:center;padding:20px 14px;color:var(--text-muted);
 }
 .chat-welcome p{font-size:13px;line-height:1.6}
 .chat-welcome .cw-hint{
   margin-top:10px;font-size:11px;
   font-family:var(--mono);color:var(--text-dim);
 }
+.onboard-card{
+  text-align:left;background:var(--surface);border:1px solid var(--border);
+  border-radius:14px;padding:18px 16px;max-width:480px;margin:0 auto;
+}
+.onboard-title{font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px}
+.onboard-sub{font-size:12.5px;color:var(--text-muted);margin-bottom:12px;line-height:1.5}
+.onboard-step{display:flex;gap:10px;margin-bottom:11px;font-size:13px;color:var(--text);line-height:1.5}
+.onboard-step b{font-weight:600}
+.onboard-num{font-size:15px;flex-shrink:0}
+.onboard-dim{font-size:11.5px;color:var(--text-dim);line-height:1.45}
+.onboard-divider{height:1px;background:var(--border);margin:14px 0}
+.onboard-examples{display:flex;flex-direction:column;gap:6px;margin:10px 0 4px}
+.onboard-examples span{font-size:12px;color:var(--text-muted)}
+.onboard-examples code,.onboard-help code{
+  font-family:var(--mono);background:var(--surface2);
+  padding:1px 6px;border-radius:5px;color:var(--accent);font-size:11.5px;
+}
+.onboard-help{font-size:11.5px;color:var(--text-dim);margin-top:12px;line-height:1.55}
+.onboard-guide-btn{width:100%;margin-top:14px;font-size:14px;padding:11px}
 
 /* bubbles */
 .bubble-wrap{display:flex;flex-direction:column;gap:3px}
@@ -574,6 +593,17 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
   max-height:90vh;overflow-y:auto;
 }
 .modal-title{font-size:16px;font-weight:600;margin-bottom:14px}
+.guide-wrap{display:flex;flex-direction:column;max-height:84vh}
+.guide-head{display:flex;align-items:center;justify-content:space-between;font-size:17px;font-weight:700;color:var(--text);padding-bottom:12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface)}
+.guide-body{overflow-y:auto;-webkit-overflow-scrolling:touch;padding-top:14px}
+.guide-sec{font-size:14px;font-weight:700;color:var(--accent);margin:16px 0 7px}
+.guide-sec:first-child{margin-top:0}
+.guide-p{font-size:12.5px;color:var(--text-muted);line-height:1.55;margin:6px 0}
+.guide-eg{font-size:12.5px;color:var(--text);line-height:1.7;margin:5px 0}
+.guide-list{margin:6px 0 6px 2px;padding-left:16px;display:flex;flex-direction:column;gap:5px}
+.guide-list li{font-size:12.5px;color:var(--text-muted);line-height:1.5}
+.guide-list li b,.guide-eg b{color:var(--text);font-weight:600}
+.guide-wrap code{font-family:var(--mono);background:var(--surface2);padding:1px 6px;border-radius:5px;color:var(--accent);font-size:11.5px}
 .modal-body{display:flex;flex-direction:column;gap:10px}
 .modal-field-label{font-size:12px;color:var(--text-muted);margin-bottom:4px}
 .modal-footer{display:flex;gap:8px;margin-top:16px}
@@ -785,9 +815,32 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
   <div class="tab-pane active" id="tab-chat">
     <div id="chat-messages">
       <div class="chat-welcome">
-        <p>Log your expenses here 💬</p>
-        <p style="margin-top:6px;font-size:12px;color:var(--text-dim)">Type in any format you like</p>
-        <div class="cw-hint">lunch · nasi lemak · 10 · hlb</div>
+        <div class="onboard-card">
+          <div class="onboard-title">👋 Welcome to Exps·Flow!</div>
+          <div class="onboard-sub">Before you start, complete these quick setup steps:</div>
+          <div class="onboard-step">
+            <div class="onboard-num">1️⃣</div>
+            <div><b>Add your Banks, E-Wallets, Credit Cards &amp; Installments</b><br><span class="onboard-dim">Go to Settings → Banks &amp; Wallets and add all the accounts you use.</span></div>
+          </div>
+          <div class="onboard-step">
+            <div class="onboard-num">2️⃣</div>
+            <div><b>Set up your Fixed Payments</b><br><span class="onboard-dim">Go to the Fixed Expenses tab and add your monthly recurring bills (Rent, Netflix, Internet, Insurance, etc.).</span></div>
+          </div>
+          <div class="onboard-step">
+            <div class="onboard-num">3️⃣</div>
+            <div><b>Set your Starting Balances</b><br><span class="onboard-dim">Go to the Savings tab to view all your accounts and enter the current balance for each bank, e-wallet, credit card, or installment account.</span></div>
+          </div>
+          <div class="onboard-divider"></div>
+          <div class="onboard-sub">Once you're done, just chat naturally:</div>
+          <div class="onboard-examples">
+            <span>💸 <code>lunch 15</code></span>
+            <span>💰 <code>salary 5000</code></span>
+            <span>🔄 <code>transfer 200 from hlb to pbb</code></span>
+            <span>💳 <code>uob cc - iphone 3000/12</code></span>
+          </div>
+          <div class="onboard-help">💡 Not sure how to use something? Type <code>help</code> or tap the button below for the full guide.</div>
+          <button class="btn btn-primary onboard-guide-btn" id="onboard-guide-btn">📖 Open User Guide</button>
+        </div>
       </div>
     </div>
     <div id="chat-input-bar">
@@ -938,8 +991,9 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
       </div>
     </div>
     <div style="text-align:center;padding:14px 0 4px">
+      <button class="btn btn-ghost" id="btn-user-guide" style="font-size:13px;margin-bottom:8px">📖 User Guide</button>
       <button class="btn btn-ghost" id="btn-force-update" style="font-size:12px">🔄 Check for Updates</button>
-      <div style="font-size:11px;color:var(--text-dim);margin-top:8px">Exps·Flow <span id="app-version">v58</span></div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:8px">Exps·Flow <span id="app-version">v61</span></div>
     </div>
     <div style="height:24px"></div>
     <input type="file" id="import-json-input" accept=".json" style="display:none">
@@ -1111,6 +1165,7 @@ const CHART_COLORS = ['#f5a623','#e04444','#4cd964','#007aff','#af52de','#ff2d55
 // STATE
 // ═══════════════════════════════════════
 
+const APP_VERSION = 'v61'; // bump this each release; used by the update checker
 const SK_PREFIX = 'exps_v2_';
 const SK_CUR = 'exps_v2_active_currency';
 function currencyKey(cur){ return SK_PREFIX + cur; }
@@ -1576,6 +1631,7 @@ function parseInput(raw) {
   const lower = trimmed.toLowerCase();
 
   // Commands
+  if (lower==='help'||lower==='?'||lower==='guide'||lower==='帮助'||lower==='教学') return {command:'help'};
   if (lower==='delete last'||lower==='del last') return {command:'deleteLast'};
   if (lower==='edit last') return {command:'editLast'};
   if (lower.startsWith('edit ')) return {command:'editQuery',query:lower.slice(5).trim()};
@@ -2171,6 +2227,10 @@ function updateSavingsBalance(tx) {
 }
 
 function handleCommand(cmd) {
+  if (cmd.command==='help') {
+    showUserGuide();
+    return;
+  }
   if (cmd.command==='deleteLast') {
     if (S.transactions.length===0) { appendSystemBubble('No records to delete.'); return; }
     const tx=S.transactions[0];
@@ -4839,6 +4899,33 @@ function renderSettingsCats() {
   });
 }
 
+// Generate sensible aliases/keywords automatically from a name, so the user
+// doesn't have to think of them. They can still add their own later.
+function autoAliases(name){
+  const out=new Set();
+  const clean=name.toLowerCase().trim();
+  if(!clean) return [];
+  // 1. the full name, lowercased
+  out.add(clean);
+  // 2. name without spaces / punctuation (e.g. "hong leong" → "hongleong")
+  const squished=clean.replace(/[^a-z0-9]+/g,'');
+  if(squished && squished!==clean) out.add(squished);
+  // 3. significant individual words (skip tiny filler words)
+  const stop=new Set(['the','and','of','a','an','bank','berhad','bhd','sdn','card','cc','my','your']);
+  const words=clean.split(/[^a-z0-9]+/).filter(Boolean);
+  words.forEach(w=>{ if(w.length>=3 && !stop.has(w)) out.add(w); });
+  // 4. initials when the name has 2+ words (e.g. "Hong Leong Bank" → "hlb", "hl")
+  if(words.length>=2){
+    const initials=words.map(w=>w[0]).join('');
+    if(initials.length>=2){ out.add(initials); }
+    // also initials of non-stopword words (e.g. drop "Bank")
+    const sigWords=words.filter(w=>!stop.has(w));
+    if(sigWords.length>=2){ out.add(sigWords.map(w=>w[0]).join('')); }
+  }
+  // remove the exact name dupes & empties, cap length
+  return [...out].filter(a=>a && a.length>=2).slice(0,8);
+}
+
 function showEditCatModal(cat) {
   showModal(`
     <div class="modal-title">${cat?'Edit Category':'New Category'}</div>
@@ -4861,8 +4948,8 @@ function showEditCatModal(cat) {
         </select>
       </div>
       <div>
-        <div class="modal-field-label">Keywords (comma-separated)</div>
-        <textarea class="field" id="ce-kws" rows="3" style="resize:none">${cat?(cat.keywords||[]).join(', '):''}</textarea>
+        <div class="modal-field-label">Keywords <span style="font-size:10px;color:var(--text-dim)">— leave blank to auto-fill from the name</span></div>
+        <textarea class="field" id="ce-kws" rows="3" style="resize:none" placeholder="Auto-generated from name if left empty">${cat?(cat.keywords||[]).join(', '):''}</textarea>
       </div>
     </div>
     <div class="modal-footer">
@@ -4873,9 +4960,11 @@ function showEditCatModal(cat) {
   document.getElementById('ce-save').addEventListener('click',()=>{
     const emoji=document.getElementById('ce-emoji').value.trim()||'🏷️';
     const name=document.getElementById('ce-name').value.trim();
-    const kws=document.getElementById('ce-kws').value.split(',').map(k=>k.trim()).filter(Boolean);
+    let kws=document.getElementById('ce-kws').value.split(',').map(k=>k.trim()).filter(Boolean);
     const isIncome=document.getElementById('ce-type').value==='income';
     if (!name) return;
+    // If the user didn't type any keywords, auto-fill sensible ones from the name
+    if(kws.length===0) kws=autoAliases(name);
     if (cat) {
       cat.emoji=emoji; cat.name=name; cat.keywords=kws;
       if(isIncome) cat.isIncome=true; else delete cat.isIncome;
@@ -4973,8 +5062,8 @@ function showEditBankModal(bank) {
         </div>
       </div>
       <div>
-        <div class="modal-field-label">Aliases (comma-separated)</div>
-        <input class="field field-mono" id="be-aliases" value="${bank?(bank.aliases||[]).join(', '):''}">
+        <div class="modal-field-label">Aliases <span style="font-size:10px;color:var(--text-dim)">— leave blank to auto-fill from the name</span></div>
+        <input class="field field-mono" id="be-aliases" value="${bank?(bank.aliases||[]).join(', '):''}" placeholder="Auto-generated from name if left empty">
       </div>
       <div>
         <div class="modal-field-label">Type</div>
@@ -5023,7 +5112,7 @@ function showEditBankModal(bank) {
   document.getElementById('be-save').addEventListener('click',()=>{
     const emoji=document.getElementById('be-emoji').value.trim()||'🏦';
     const name=document.getElementById('be-name').value.trim();
-    const aliases=document.getElementById('be-aliases').value.split(',').map(a=>a.trim().toLowerCase()).filter(Boolean);
+    let aliases=document.getElementById('be-aliases').value.split(',').map(a=>a.trim().toLowerCase()).filter(Boolean);
     const type=document.getElementById('be-type').value;
     const role=document.getElementById('be-role').value||null;
     // credit-card statement & due days (1-28)
@@ -5032,6 +5121,8 @@ function showEditBankModal(bank) {
     if(isNaN(stmtDay)||stmtDay<1||stmtDay>28) stmtDay=null;
     if(isNaN(dueDay)||dueDay<1||dueDay>28) dueDay=null;
     if (!name) return;
+    // If the user didn't type any aliases, auto-fill sensible ones from the name
+    if(aliases.length===0) aliases=autoAliases(name);
     if (bank) {
       bank.emoji=emoji; bank.name=name; bank.aliases=aliases; bank.type=type;
       if(role){ bank.role=role;
@@ -5182,6 +5273,102 @@ function showConfirmModal(msg, onConfirm, onCancel, confirmLabel) {
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
   document.getElementById('modal-box').innerHTML='';
+}
+
+function showUserGuide(){
+  const g=`
+  <div class="guide-wrap">
+    <div class="guide-head">
+      <span>📖 User Guide</span>
+      <button class="btn-icon" id="guide-close" style="font-size:20px;font-family:var(--font);line-height:1">×</button>
+    </div>
+    <div class="guide-body">
+
+      <div class="guide-sec">💬 Chat — Type Anything</div>
+      <p class="guide-p">The app understands natural language. Just type — it'll ask if anything's missing.</p>
+      <div class="guide-eg"><b>Expenses:</b> <code>lunch 15</code> · <code>coffee 5 hlb</code> · <code>groceries 120 from cimb</code> · <code>dinner 80 25/6</code></div>
+      <div class="guide-eg"><b>Income:</b> <code>salary 5000</code> · <code>freelance 800</code> · <code>dividend 200</code></div>
+      <div class="guide-eg"><b>Thousands:</b> <code>rent 1.5k</code> · <code>salary 5k</code></div>
+      <p class="guide-p">If you don't include a bank, the app asks. If the category isn't clear, it asks — and offers a <b>💰 This is an income</b> button.</p>
+
+      <div class="guide-sec">💰 Income Types</div>
+      <ul class="guide-list">
+        <li><b>💵 Salary</b> — salary, gaji, wages</li>
+        <li><b>💼 Side Income</b> — freelance, tutor, stream, side income</li>
+        <li><b>📊 Investment Income</b> — dividend, interest, rental income</li>
+        <li><b>🤝 Loan Repayment</b> — <code>john loan repay 1000</code>, 还贷 (money a friend returns for a loan you gave — counts as income)</li>
+      </ul>
+
+      <div class="guide-sec">🔄 Transfers &amp; Reimbursements</div>
+      <div class="guide-eg"><b>Person transfer:</b> <code>transfer from Bah 200</code> · <code>transfer to John 50</code></div>
+      <p class="guide-p">The app asks which account, and what it was for (or skip).</p>
+      <p class="guide-p"><b>Reimbursement vs Loan Repayment:</b> when you type <code>john pay back 50</code> or <code>john 还 40</code>, the app asks which one:</p>
+      <ul class="guide-list">
+        <li><b>💳 Reimbursement</b> — paying back what you covered (e.g. their dinner). NOT income.</li>
+        <li><b>🤝 Loan Repayment</b> — returning money you lent. Counts as income.</li>
+      </ul>
+      <p class="guide-p">Clear words skip the question: <code>reimburse</code>, <code>refund</code>, 报销, 退款 → reimbursement. <code>loan repay</code>, 还贷 → loan repayment.</p>
+
+      <div class="guide-sec">💳 Credit Cards &amp; Installments</div>
+      <div class="guide-eg"><b>New purchase:</b> <code>uob cc - iphone 2000/12</code> · <code>atome airpods 400/3</code> · <code>cimb cc laptop 3000</code></div>
+      <p class="guide-p">Format: <code>[provider] - [item] [amount]/[months]</code>. Type just <code>iphone 2000</code> and pick a card/installment account — it asks the months.</p>
+      <p class="guide-p"><b>BNPL supported:</b> Atome, SPayLater, GrabPayLater</p>
+      <div class="guide-eg"><b>Pay your bill:</b> <code>pay uobcc 500 from hlb</code> · <code>pay atome 150</code></div>
+      <ul class="guide-list">
+        <li>Forgot the bank? It asks.</li>
+        <li>Forgot the amount? It suggests this month's due.</li>
+        <li>Already paid this month? It blocks you — no double deduction.</li>
+      </ul>
+      <p class="guide-p"><b>This Month Due:</b> with a Statement Day set, only purchases on/before that day count this month — later ones roll to next month. After paying, it drops to 0 and resets next month. Partial payments reduce the balance.</p>
+      <p class="guide-p"><b>Set dates:</b> Settings → Banks → ✏️ on your card → Statement day &amp; Payment due day.</p>
+
+      <div class="guide-sec">📌 Fixed Expenses</div>
+      <p class="guide-p">Recurring bills (Rental, Insurance, Internet, Netflix, iCloud, Disney+, Spotify pre-loaded).</p>
+      <div class="guide-eg"><b>From chat:</b> <code>paid netflix 47</code> · <code>paid internet plan 89 from tng</code> · <code>netflix paid 47 22/6</code></div>
+      <p class="guide-p">Typos are fine — <code>netflx</code>, <code>nflx</code>, <code>spotfy</code> all work. Missing amount or bank? It asks.</p>
+      <p class="guide-p"><b>From Fixed tab:</b> set amount + bank on each row → tick items → <b>Mark Selected as Paid</b>. Tip: edit (✏️) each item to set a default bank.</p>
+
+      <div class="guide-sec">🏦 Savings</div>
+      <div class="guide-eg"><b>Set savings account:</b> <code>savings CIMB</code> (asks for starting balance, can be 0)</div>
+      <div class="guide-eg"><b>Transfer savings:</b> <code>savings HLB to CIMB 500</code></div>
+      <div class="guide-eg"><b>Move all + relabel:</b> <code>transfer all savings from HLB to PBB</code></div>
+      <div class="guide-eg"><b>Label only (no money moved):</b> <code>pbb is savings</code> · <code>hlb is spending</code></div>
+
+      <div class="guide-sec">📊 Stats</div>
+      <ul class="guide-list">
+        <li><b>Income</b> ▾ filter by bank</li>
+        <li><b>Expenses</b> — net of reimbursements</li>
+        <li><b>Net Balance</b> — real balance of all accounts (or one)</li>
+        <li><b>Savings</b> ▾ filter by savings account</li>
+      </ul>
+      <p class="guide-p">Ranges: This Month / Last Month / This Year / Custom. Tap a card for a detailed breakdown.</p>
+
+      <div class="guide-sec">⚙️ Settings</div>
+      <ul class="guide-list">
+        <li><b>Categories</b> — add your own (💸 Expense or 💰 Income)</li>
+        <li><b>Banks</b> — set type, role (Savings/Spending/Investment), statement &amp; due dates</li>
+        <li><b>Data</b> — backup, import JSON, import Excel, clear data</li>
+        <li><b>🔄 Check for Updates</b> — at the bottom, loads the latest version</li>
+      </ul>
+
+      <div class="guide-sec">⌨️ Handy Commands</div>
+      <ul class="guide-list">
+        <li><code>delete last</code> — remove last entry</li>
+        <li><code>edit last</code> — edit last entry</li>
+        <li><code>delete lunch</code> — find &amp; delete a matching entry</li>
+        <li><code>help</code> — open this guide</li>
+      </ul>
+
+      <div class="guide-sec">🌏 Languages &amp; Currencies</div>
+      <p class="guide-p">Chinese works too: 存款、储蓄、还我钱、报销、还贷 and more. All 5 currencies (MYR, USD, SGD, AUD, EUR) support every feature — each keeps its own separate data.</p>
+
+      <div style="height:8px"></div>
+      <button class="btn btn-primary" id="guide-done" style="width:100%">Got it!</button>
+    </div>
+  </div>`;
+  showModal(g);
+  const c=document.getElementById('guide-close'); if(c) c.addEventListener('click', closeModal);
+  const d=document.getElementById('guide-done'); if(d) d.addEventListener('click', closeModal);
 }
 
 // ═══════════════════════════════════════
@@ -5967,15 +6154,71 @@ function initEvents() {
     });
   });
   const fu=document.getElementById('btn-force-update');
-  if(fu) fu.addEventListener('click', async ()=>{
-    toast('Checking for updates…');
-    try{
-      if('caches' in window){ const keys=await caches.keys(); await Promise.all(keys.map(k=>caches.delete(k))); }
-      if('serviceWorker' in navigator){ const regs=await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r=>r.unregister())); }
-    }catch(e){}
-    // hard reload from network
-    location.reload(true);
+  if(fu) fu.addEventListener('click', checkForUpdates);
+  const og=document.getElementById('chat-messages');
+  if(og) og.addEventListener('click',(e)=>{
+    if(e.target && e.target.closest && e.target.closest('#onboard-guide-btn')) showUserGuide();
   });
+  const sg=document.getElementById('btn-user-guide');
+  if(sg) sg.addEventListener('click', showUserGuide);
+}
+
+// Check the live site for a newer version. NEVER touches saved data (localStorage) —
+// only clears the cache + service worker so the new HTML/JS loads on reload.
+async function checkForUpdates(){
+  toast('Checking for updates…');
+  let latest=null;
+  try{
+    // fetch the live index.html fresh (bypass cache) and read its version marker
+    const res=await fetch('index.html?_=' + Date.now(), {cache:'no-store'});
+    const text=await res.text();
+    const m=text.match(/id="app-version">\s*(v\d+)/);
+    if(m) latest=m[1];
+  }catch(e){ /* offline or fetch blocked */ }
+
+  if(!latest){
+    showModal(`
+      <div class="modal-title">Couldn't check</div>
+      <div class="modal-confirm"><p>Couldn't reach the server to check for updates. Please check your connection and try again.</p>
+      <div class="modal-footer" style="margin-top:0"><button class="btn btn-ghost" id="upd-ok">OK</button></div></div>`);
+    document.getElementById('upd-ok').addEventListener('click', closeModal);
+    return;
+  }
+
+  // compare numeric versions
+  const cur=parseInt((APP_VERSION||'v0').replace(/\D/g,''))||0;
+  const live=parseInt(latest.replace(/\D/g,''))||0;
+
+  if(live>cur){
+    // newer version available → ask the user
+    showModal(`
+      <div class="modal-title">🎉 Update available</div>
+      <div class="modal-confirm">
+        <p>A newer version (<b>${latest}</b>) is available. You're on <b>${APP_VERSION}</b>.</p>
+        <p style="font-size:12px;color:var(--text-dim);margin-top:8px">Your data is safe — updating only refreshes the app, it never deletes your records, accounts, or settings.</p>
+        <div class="modal-footer" style="margin-top:4px">
+          <button class="btn btn-primary" id="upd-go">Update now</button>
+          <button class="btn btn-ghost" id="upd-cancel">Not now</button>
+        </div>
+      </div>`);
+    document.getElementById('upd-go').addEventListener('click', async ()=>{
+      toast('Updating…');
+      try{
+        // Clear ONLY caches + service worker. Data in localStorage is untouched.
+        if('caches' in window){ const keys=await caches.keys(); await Promise.all(keys.map(k=>caches.delete(k))); }
+        if('serviceWorker' in navigator){ const regs=await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r=>r.unregister())); }
+      }catch(e){}
+      location.reload(true);
+    });
+    document.getElementById('upd-cancel').addEventListener('click', closeModal);
+  } else {
+    // already latest
+    showModal(`
+      <div class="modal-title">✅ You're up to date</div>
+      <div class="modal-confirm"><p>You're running the latest version (<b>${APP_VERSION}</b>).</p>
+      <div class="modal-footer" style="margin-top:0"><button class="btn btn-ghost" id="upd-ok">OK</button></div></div>`);
+    document.getElementById('upd-ok').addEventListener('click', closeModal);
+  }
 }
 
 // ═══════════════════════════════════════

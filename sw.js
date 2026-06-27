@@ -1,4 +1,4 @@
-const CACHE = 'exps-v58';
+const CACHE = 'exps-v61';
 const ASSETS = [
   '/',
   '/index.html',
