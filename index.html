@@ -993,7 +993,7 @@ select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xml
     <div style="text-align:center;padding:14px 0 4px">
       <button class="btn btn-ghost" id="btn-user-guide" style="font-size:13px;margin-bottom:8px">📖 User Guide</button>
       <button class="btn btn-ghost" id="btn-force-update" style="font-size:12px">🔄 Check for Updates</button>
-      <div style="font-size:11px;color:var(--text-dim);margin-top:8px">Exps·Flow <span id="app-version">v61</span></div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:8px">Exps·Flow <span id="app-version">v62</span></div>
     </div>
     <div style="height:24px"></div>
     <input type="file" id="import-json-input" accept=".json" style="display:none">
@@ -1165,7 +1165,7 @@ const CHART_COLORS = ['#f5a623','#e04444','#4cd964','#007aff','#af52de','#ff2d55
 // STATE
 // ═══════════════════════════════════════
 
-const APP_VERSION = 'v61'; // bump this each release; used by the update checker
+const APP_VERSION = 'v62'; // bump this each release; used by the update checker
 const SK_PREFIX = 'exps_v2_';
 const SK_CUR = 'exps_v2_active_currency';
 function currencyKey(cur){ return SK_PREFIX + cur; }
@@ -2936,11 +2936,13 @@ function handlePayFixed(cmd) {
   }
   const payDate=cmd.date||todayStr();
   const payMonth=payDate.slice(0,7);
+  const payWeek=weekKey(payDate);
+  const isWeekly=item.cycle==='weekly';
 
-  // ── DUPLICATE CHECK: already marked paid for this billing month? ──
-  if (item.lastPaidDate===payMonth) {
+  // ── DUPLICATE CHECK: already marked paid for this billing period? ──
+  if (isWeekly ? item.lastPaidWeek===payWeek : item.lastPaidDate===payMonth) {
     const existing=item.paidTxId ? S.transactions.find(t=>t.id===item.paidTxId) : null;
-    const monthLabel=new Date(payDate+'T00:00:00').toLocaleDateString('en-MY',{month:'long',year:'numeric'});
+    const periodLabel=isWeekly?'this week':new Date(payDate+'T00:00:00').toLocaleDateString('en-MY',{month:'long',year:'numeric'});
     const msgs=document.getElementById('chat-messages');
     const bubble=document.createElement('div');
     bubble.className='bubble';
@@ -2949,7 +2951,7 @@ function handlePayFixed(cmd) {
       : '';
     bubble.innerHTML=`
       <div class="bubble-category" style="color:var(--accent)">⚠️ Already Paid</div>
-      <div style="font-size:13px;color:var(--text);line-height:1.5">${item.emoji} ${item.name} is already marked as paid for ${monthLabel}. No duplicate transaction was created.</div>
+      <div style="font-size:13px;color:var(--text);line-height:1.5">${item.emoji} ${item.name} is already marked as paid for ${periodLabel}. No duplicate transaction was created.</div>
       ${existsLine}
       ${existing?`<div class="q-opts" style="margin-top:8px"><div class="q-opt" id="dup-view">View record</div></div>`:''}
     `;
@@ -2985,12 +2987,17 @@ function handlePayFixed(cmd) {
     categoryId:item.categoryId||'other', amount:amount,
     bankId:bankId, description:item.name, item:'Fixed Expense', raw:item.name
   });
-  // Update fixed item: mark paid for that month, set billing day from paid date
-  item.lastPaidDate=payMonth;
+  // Update fixed item: mark paid for that period
+  if(isWeekly){
+    item.lastPaidWeek=payWeek;
+    item.dayOfWeek=new Date(payDate+'T00:00:00').getDay();
+  } else {
+    item.lastPaidDate=payMonth;
+    const payDay=parseInt(payDate.slice(8,10));
+    item.dayOfMonth=payDay;
+    if (item.cycle==='yearly') item.billingMonth=parseInt(payDate.slice(5,7));
+  }
   item.paidTxId=txId;
-  const payDay=parseInt(payDate.slice(8,10));
-  item.dayOfMonth=payDay;
-  if (item.cycle==='yearly') item.billingMonth=parseInt(payDate.slice(5,7));
   item.amount=String(amount);
   if(!item.bankId) item.bankId=bankId; // remember the chosen bank for next time
   save();
@@ -3627,7 +3634,13 @@ function getDueInfo(item) {
   const now=new Date(); now.setHours(0,0,0,0);
   const day=item.dayOfMonth||1;
   let nextDue;
-  if (item.cycle==='monthly') {
+  if (item.cycle==='weekly') {
+    // next occurrence of the chosen weekday (0=Sun … 6=Sat)
+    const target=item.dayOfWeek!=null?item.dayOfWeek:1; // default Monday
+    let diff=(target-now.getDay()+7)%7;
+    if(diff===0) diff=0; // today counts as due today
+    nextDue=new Date(now.getFullYear(),now.getMonth(),now.getDate()+diff);
+  } else if (item.cycle==='monthly') {
     let d=new Date(now.getFullYear(),now.getMonth(),day);
     if (d<now) d=new Date(now.getFullYear(),now.getMonth()+1,day);
     nextDue=d;
@@ -3646,9 +3659,21 @@ function getDueInfo(item) {
 }
 
 function cycleLabel(item) {
+  if (item.cycle==='weekly') return 'Weekly';
   if (item.cycle==='monthly') return 'Monthly';
   if (item.cycle==='6months') return 'Every 6 months';
   return 'Yearly';
+}
+
+const WEEKDAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+// ISO week key like "2026-W27" for tracking weekly payments
+function weekKey(dateStr){
+  const d=new Date(dateStr||todayStr()); d.setHours(0,0,0,0);
+  // Thursday-based ISO week
+  const t=new Date(d); t.setDate(d.getDate()+3-((d.getDay()+6)%7));
+  const week1=new Date(t.getFullYear(),0,4);
+  const wk=1+Math.round(((t-week1)/864e5-3+((week1.getDay()+6)%7))/7);
+  return t.getFullYear()+'-W'+String(wk).padStart(2,'0');
 }
 
 function updateFixedSummary() {
@@ -3670,14 +3695,18 @@ function renderFixed() {
     updateFixedSummary(); return;
   }
   const cm=todayStr().slice(0,7);
+  const cw=weekKey(todayStr());
   let html='';
   for (const item of S.fixedExpenses) {
     const bankOpts=S.banks.filter(b=>b.type!=='instalment').map(b=>`<option value="${b.id}"${b.id===item.bankId?' selected':''}>${b.emoji} ${b.name}</option>`).join('');
     const {daysUntil}=getDueInfo(item);
     const isDue=daysUntil<=3&&daysUntil>=0;
-    const paidThisMonth=item.lastPaidDate===cm;
+    const paidThisPeriod = item.cycle==='weekly' ? item.lastPaidWeek===cw : item.lastPaidDate===cm;
+    const paidThisMonth=paidThisPeriod;
     const isSel=fixedSelectedIds.has(item.id);
-    const dayStr=item.cycle==='yearly'
+    const dayStr=item.cycle==='weekly'
+      ?`Every ${WEEKDAYS[item.dayOfWeek!=null?item.dayOfWeek:1]}`
+      :item.cycle==='yearly'
       ?`${MONTHS_SHORT[(item.billingMonth||1)-1]} ${item.dayOfMonth||1}`
       :`Day ${item.dayOfMonth||1}`;
     const rowClass=['fixed-item',isDue&&!paidThisMonth?'due-soon':''].filter(Boolean).join(' ');
@@ -3728,6 +3757,7 @@ function renderFixed() {
           S.transactions=S.transactions.filter(t=>t.id!==item.paidTxId);
         }
         item.lastPaidDate=null;
+        item.lastPaidWeek=null;
         item.paidTxId=null;
         save();
         renderFixed();
@@ -3780,10 +3810,17 @@ function showFixedModal(item) {
   const curCycle=item?item.cycle:'monthly';
   const curDay=item?item.dayOfMonth||1:1;
   const curMonth=item?item.billingMonth||1:1;
+  const curDow=item&&item.dayOfWeek!=null?item.dayOfWeek:1; // default Monday
 
+  // Day-of-month picker (1-31) — shown for non-weekly cycles
   let dayGrid='<div class="day-picker" id="fe-day-grid">';
   for (let d=1;d<=31;d++) dayGrid+=`<button type="button" class="day-btn${d===curDay?' dp-sel':''}" data-day="${d}">${d}</button>`;
   dayGrid+='</div>';
+
+  // Day-of-week picker (Mon-Sun) — shown for weekly cycle
+  let dowGrid='<div class="day-picker" id="fe-dow-grid" style="grid-template-columns:repeat(7,1fr)">';
+  [1,2,3,4,5,6,0].forEach(dw=>{ dowGrid+=`<button type="button" class="day-btn${dw===curDow?' dp-sel':''}" data-dow="${dw}" style="font-size:12px">${WEEKDAYS[dw]}</button>`; });
+  dowGrid+='</div>';
 
   let monthGrid='<div id="fe-month-row" style="margin-top:10px;display:'+(curCycle==='yearly'?'block':'none')+'"><div class="modal-field-label" style="margin-bottom:4px">Billing month</div><div class="month-picker" id="fe-month-grid">';
   MONTHS_SHORT.forEach((mn,i)=>{ monthGrid+=`<button type="button" class="month-btn${i+1===curMonth?' mp-sel':''}" data-month="${i+1}">${mn}</button>`; });
@@ -3806,11 +3843,13 @@ function showFixedModal(item) {
         <input class="field field-mono" id="fe-amt" type="number" placeholder="0.00" step="0.01" value="${item?item.amount:''}"></div>
       <div><div class="modal-field-label">Billing cycle</div>
         <select class="field" id="fe-cycle">
+          <option value="weekly"${curCycle==='weekly'?' selected':''}>Weekly</option>
           <option value="monthly"${curCycle==='monthly'?' selected':''}>Monthly</option>
           <option value="6months"${curCycle==='6months'?' selected':''}>Every 6 months</option>
           <option value="yearly"${curCycle==='yearly'?' selected':''}>Yearly</option>
         </select></div>
-      <div><div class="modal-field-label">Billing day</div>${dayGrid}</div>
+      <div id="fe-dom-row" style="display:${curCycle==='weekly'?'none':'block'}"><div class="modal-field-label">Billing day</div>${dayGrid}</div>
+      <div id="fe-dow-row" style="display:${curCycle==='weekly'?'block':'none'}"><div class="modal-field-label">Day of week</div>${dowGrid}</div>
       ${monthGrid}
     </div>
     <div class="modal-footer">
@@ -3822,8 +3861,15 @@ function showFixedModal(item) {
   let selDay=curDay;
   document.getElementById('fe-day-grid').querySelectorAll('.day-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
-      document.querySelectorAll('.day-btn').forEach(b=>b.classList.remove('dp-sel'));
+      document.getElementById('fe-day-grid').querySelectorAll('.day-btn').forEach(b=>b.classList.remove('dp-sel'));
       btn.classList.add('dp-sel'); selDay=parseInt(btn.dataset.day);
+    });
+  });
+  let selDow=curDow;
+  document.getElementById('fe-dow-grid').querySelectorAll('.day-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.getElementById('fe-dow-grid').querySelectorAll('.day-btn').forEach(b=>b.classList.remove('dp-sel'));
+      btn.classList.add('dp-sel'); selDow=parseInt(btn.dataset.dow);
     });
   });
   let selMonth=curMonth;
@@ -3834,7 +3880,10 @@ function showFixedModal(item) {
     });
   });
   document.getElementById('fe-cycle').addEventListener('change',e=>{
-    document.getElementById('fe-month-row').style.display=e.target.value==='yearly'?'block':'none';
+    const v=e.target.value;
+    document.getElementById('fe-month-row').style.display=v==='yearly'?'block':'none';
+    document.getElementById('fe-dom-row').style.display=v==='weekly'?'none':'block';
+    document.getElementById('fe-dow-row').style.display=v==='weekly'?'block':'none';
   });
 
   document.getElementById('fe-save').addEventListener('click',()=>{
@@ -3847,10 +3896,14 @@ function showFixedModal(item) {
     const cycle=document.getElementById('fe-cycle').value;
     if(isEdit){
       item.emoji=emoji;item.name=name;item.categoryId=categoryId;item.bankId=bankId;
-      item.amount=amount;item.cycle=cycle;item.dayOfMonth=selDay;
-      if(cycle==='yearly')item.billingMonth=selMonth;
+      item.amount=amount;item.cycle=cycle;
+      if(cycle==='weekly'){ item.dayOfWeek=selDow; }
+      else { item.dayOfMonth=selDay; if(cycle==='yearly')item.billingMonth=selMonth; }
     } else {
-      S.fixedExpenses.push({id:uid(),emoji,name,categoryId,bankId,amount,cycle,dayOfMonth:selDay,billingMonth:selMonth,lastPaidDate:null,paidTxId:null});
+      const nf={id:uid(),emoji,name,categoryId,bankId,amount,cycle,lastPaidDate:null,paidTxId:null};
+      if(cycle==='weekly'){ nf.dayOfWeek=selDow; }
+      else { nf.dayOfMonth=selDay; nf.billingMonth=selMonth; }
+      S.fixedExpenses.push(nf);
     }
     save();closeModal();renderFixed();
   });
@@ -3869,16 +3922,18 @@ function saveFixedAmounts() {
 
 function markSelectedPaid() {
   const cm=todayStr().slice(0,7);
+  const cw=weekKey(todayStr());
   const toProcess=[];
   const skipped=[];
   fixedSelectedIds.forEach(id=>{
     const item=S.fixedExpenses.find(f=>f.id===id);
     if(!item)return;
-    if(item.lastPaidDate===cm){ skipped.push(item); return; } // already paid this month
+    const already = item.cycle==='weekly' ? item.lastPaidWeek===cw : item.lastPaidDate===cm;
+    if(already){ skipped.push(item); return; } // already paid this period
     toProcess.push(item);
   });
   if(toProcess.length===0){
-    if(skipped.length>0){ toast(skipped.length+' already paid this month'); fixedSelectedIds.clear(); renderFixed(); }
+    if(skipped.length>0){ toast(skipped.length+' already paid this period'); fixedSelectedIds.clear(); renderFixed(); }
     else toast('No items selected');
     return;
   }
@@ -3912,7 +3967,8 @@ function processFixedQueue(queue, idx, recorded, cm){
     return;
   }
   // 3. All good → record the expense
-  item.lastPaidDate=cm;
+  if(item.cycle==='weekly') item.lastPaidWeek=weekKey(todayStr());
+  else item.lastPaidDate=cm;
   const txId=uid();
   item.paidTxId=txId;
   S.transactions.unshift({
